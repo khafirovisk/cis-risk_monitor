@@ -1,6 +1,16 @@
 # SSO SAML 2.0
 
-A aplicação é o **Service Provider (SP)**. Cadastre-a no seu IdP e preencha o bloco `SAML_*` no `.env`.
+A aplicação é o **Service Provider (SP)**. A partir desta versão, a configuração do
+SAML é feita pela tela **Configuração do SSO** (`/admin/saml`, visível só para
+usuários com papel `ADMIN`) — não é mais necessário editar `.env` nem reiniciar o
+backend para aplicar mudanças. As variáveis `SAML_*` abaixo continuam existindo
+apenas como *seed* inicial (usadas uma única vez, na primeira execução do
+`npm run seed`, para popular a configuração no banco).
+
+Se o SSO estiver fora do ar, há uma conta local de emergência: usuário `admin`,
+senha `admin` na primeira instalação — a aplicação exige a troca dessa senha no
+primeiro login. Acesse pelo link "Problemas com o SSO? Entrar com conta local" na
+tela de login.
 
 ## Dados do SP para cadastrar no IdP
 
