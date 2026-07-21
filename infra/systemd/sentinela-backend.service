@@ -1,0 +1,20 @@
+[Unit]
+Description=Sentinela CIS - API (NestJS)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/sentinela/backend
+EnvironmentFile=/opt/sentinela/backend/.env
+ExecStart=/usr/bin/node dist/main.js
+Restart=on-failure
+RestartSec=5
+# hardening
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,45 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      DATABASE_URL: ${DATABASE_URL}
+      APP_BASE_URL: ${APP_BASE_URL}
+      SESSION_SECRET: ${SESSION_SECRET}
+      SAML_ENTRY_POINT: ${SAML_ENTRY_POINT}
+      SAML_ISSUER: ${SAML_ISSUER}
+      SAML_IDP_CERT: ${SAML_IDP_CERT}
+      SAML_CALLBACK_URL: ${SAML_CALLBACK_URL}
+    volumes:
+      - uploads:/app/uploads
+
+  web:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "8080:80"   # Nginx do container serve o SPA e faz proxy de /api -> api:3000
+
+volumes:
+  pgdata:
+  uploads:

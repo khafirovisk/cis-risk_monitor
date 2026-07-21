@@ -1,0 +1,160 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  AUDITOR
+  LEITOR
+}
+
+enum RiskStatus {
+  ABERTO
+  EM_TRATAMENTO
+  MITIGADO
+  ACEITO
+}
+
+model User {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  name       String?
+  samlNameId String?  @unique
+  role       Role     @default(AUDITOR)
+  createdAt  DateTime @default(now())
+  audits     AuditLog[]
+}
+
+// ---------- Catálogo CIS ----------
+model Framework {
+  id       String    @id @default(cuid())
+  code     String    @unique          // "CIS"
+  name     String
+  version  String                      // "8.1.2"
+  controls Control[]
+}
+
+model Control {
+  id          String       @id @default(cuid())
+  frameworkId String
+  framework   Framework    @relation(fields: [frameworkId], references: [id])
+  number      Int                       // 1..18
+  titleEn     String
+  titlePt     String
+  descPt      String
+  safeguards  Safeguard[]
+  risks       RiskControl[]
+
+  @@unique([frameworkId, number])
+}
+
+model Safeguard {
+  id              String           @id @default(cuid())
+  controlId       String
+  control         Control          @relation(fields: [controlId], references: [id])
+  code            String           @unique   // "1.1", "3.11"
+  titleEn         String
+  titlePt         String
+  descriptionEn   String
+  questionPt      String                       // pergunta do auditor
+  examplesPt      String[]                     // exemplos práticos
+  evidenceHintPt  String                       // evidências típicas
+  assetClass      String
+  securityFunction String
+  ig1             Boolean          @default(false)
+  ig2             Boolean          @default(false)
+  ig3             Boolean          @default(false)
+  items           AssessmentItem[]
+}
+
+// ---------- Avaliação de maturidade ----------
+model Assessment {
+  id        String           @id @default(cuid())
+  name      String
+  scopeIg   Int              @default(2)   // 1, 2 ou 3
+  status    String           @default("EM_ANDAMENTO")
+  createdBy String?
+  createdAt DateTime         @default(now())
+  items     AssessmentItem[]
+}
+
+model AssessmentItem {
+  id           String     @id @default(cuid())
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  safeguardId  String
+  safeguard    Safeguard  @relation(fields: [safeguardId], references: [id])
+  maturity     Int?                       // 0..5 (null = não avaliado -> conta como 0)
+  na           Boolean    @default(false) // não se aplica -> fora do cálculo
+  evidenceText String?
+  updatedBy    String?
+  updatedAt    DateTime   @updatedAt
+  evidences    Evidence[]
+
+  @@unique([assessmentId, safeguardId])
+}
+
+model Evidence {
+  id         String         @id @default(cuid())
+  itemId     String
+  item       AssessmentItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  filename   String
+  storageKey String                        // caminho no volume ou chave S3
+  mime       String?
+  size       Int?
+  uploadedBy String?
+  uploadedAt DateTime       @default(now())
+}
+
+// ---------- Riscos ----------
+model Risk {
+  id             String        @id @default(cuid())
+  title          String
+  description    String?
+  probInherent   Int           @default(3)
+  impactInherent Int           @default(3)
+  probResidual   Int           @default(3)
+  impactResidual Int           @default(3)
+  ownerName      String?
+  status         RiskStatus    @default(ABERTO)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  controls       RiskControl[]
+  tasks          Task[]
+}
+
+model RiskControl {
+  riskId    String
+  risk      Risk    @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  controlId String
+  control   Control @relation(fields: [controlId], references: [id])
+
+  @@id([riskId, controlId])
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  riskId      String
+  risk        Risk      @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  description String
+  assignee    String?
+  dueDate     DateTime?
+  done        Boolean   @default(false)
+}
+
+// ---------- Trilha de auditoria ----------
+model AuditLog {
+  id       String   @id @default(cuid())
+  userId   String?
+  user     User?    @relation(fields: [userId], references: [id])
+  action   String                       // CREATE/UPDATE/DELETE
+  entity   String
+  entityId String?
+  meta     Json?
+  at       DateTime @default(now())
+}
