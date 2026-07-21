@@ -35,6 +35,20 @@ export const api = {
   summary: (id: string) => req<any>(`/assessments/${id}/summary`),
   setItem: (id: string, sg: string, b: any) =>
     req<any>(`/assessments/${id}/items/${sg}`, { method: 'PUT', body: JSON.stringify(b) }),
+  uploadEvidences: (assessmentId: string, safeguardId: string, files: File[]) => {
+    const form = new FormData();
+    files.forEach((f) => form.append('files', f));
+    return fetch(`${BASE}/assessments/${assessmentId}/items/${safeguardId}/evidences`, {
+      method: 'POST',
+      credentials: 'include',
+      body: form,
+    }).then(async (res) => {
+      if (!res.ok) throw Object.assign(new Error(`API ${res.status}`), { status: res.status });
+      return res.json();
+    });
+  },
+  deleteEvidence: (id: string) => req<void>(`/evidences/${id}`, { method: 'DELETE' }),
+  evidenceUrl: (id: string) => BASE + '/evidences/' + id,
   risks: () => req<any[]>('/risks'),
   createRisk: (b: any) => req<any>('/risks', { method: 'POST', body: JSON.stringify(b) }),
   updateRisk: (id: string, b: any) => req<any>(`/risks/${id}`, { method: 'PUT', body: JSON.stringify(b) }),
