@@ -26,6 +26,15 @@ export class AssessmentsService {
     return a;
   }
 
+  // Garante que o AssessmentItem exista (para anexar evidência sem alterar maturidade/na)
+  ensureItem(assessmentId: string, safeguardId: string) {
+    return this.prisma.assessmentItem.upsert({
+      where: { assessmentId_safeguardId: { assessmentId, safeguardId } },
+      update: {},
+      create: { assessmentId, safeguardId },
+    });
+  }
+
   // Upsert da avaliação de uma salvaguarda
   async setItem(
     assessmentId: string,
