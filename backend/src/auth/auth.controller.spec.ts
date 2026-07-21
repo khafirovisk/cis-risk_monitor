@@ -8,6 +8,7 @@ jest.mock('@node-saml/node-saml', () => ({
 }));
 
 import { AuthController } from './auth.controller';
+import { UnauthorizedException } from '@nestjs/common';
 
 function makeRes() {
   return { redirect: jest.fn(), json: jest.fn(), status: jest.fn().mockReturnThis(), clearCookie: jest.fn() };
@@ -85,11 +86,41 @@ describe('AuthController', () => {
     expect(res.json).toHaveBeenCalledWith({ ok: true, mustChangePassword: true });
   });
 
-  it('changePassword delega ao LocalAdminAccountService', async () => {
-    const req: any = { user: { mustChangePassword: true } };
+  it('changePassword delega ao LocalAdminAccountService quando há sessão local autenticada', async () => {
+    const req: any = {
+      isAuthenticated: () => true,
+      user: { mustChangePassword: true, local: true },
+    };
     await controller.changePassword({ currentPassword: 'admin', newPassword: 'nova12345' }, req);
     expect(localAdmin.changePassword).toHaveBeenCalledWith('admin', 'nova12345');
     expect(req.user.mustChangePassword).toBe(false);
+  });
+
+  it('changePassword rejeita com UnauthorizedException quando não há sessão autenticada', async () => {
+    const req: any = { isAuthenticated: () => false, user: undefined };
+
+    await expect(
+      controller.changePassword({ currentPassword: 'admin', newPassword: 'nova12345' }, req),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(localAdmin.changePassword).not.toHaveBeenCalled();
+  });
+
+  it('changePassword rejeita com UnauthorizedException quando isAuthenticated está ausente', async () => {
+    const req: any = { user: { mustChangePassword: true, local: true } };
+
+    await expect(
+      controller.changePassword({ currentPassword: 'admin', newPassword: 'nova12345' }, req),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(localAdmin.changePassword).not.toHaveBeenCalled();
+  });
+
+  it('changePassword rejeita com UnauthorizedException quando a sessão não é da conta local', async () => {
+    const req: any = { isAuthenticated: () => true, user: { mustChangePassword: false } };
+
+    await expect(
+      controller.changePassword({ currentPassword: 'admin', newPassword: 'nova12345' }, req),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(localAdmin.changePassword).not.toHaveBeenCalled();
   });
 
   it('callback redireciona para /login?error=saml_falha quando validatePostResponseAsync rejeita', async () => {

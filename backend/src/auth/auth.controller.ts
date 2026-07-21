@@ -1,4 +1,14 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+  Res,
+  UnauthorizedException,
+} from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { SAML } from '@node-saml/node-saml';
 import { PrismaService } from '../prisma/prisma.service';
@@ -83,6 +93,9 @@ export class AuthController {
     @Body() body: { currentPassword: string; newPassword: string },
     @Req() req: Request,
   ) {
+    if (!req.isAuthenticated?.() || !(req.user as any)?.local) {
+      throw new UnauthorizedException();
+    }
     await this.localAdmin.changePassword(body.currentPassword, body.newPassword);
     if (req.user) (req.user as any).mustChangePassword = false;
     return { ok: true };
