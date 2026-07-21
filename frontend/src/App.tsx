@@ -1,9 +1,24 @@
+import { useEffect, useState } from 'react';
 import { NavLink, Route, Routes, Navigate } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard';
 import { Auditoria } from './pages/Auditoria';
 import { Riscos } from './pages/Riscos';
+import { Login } from './pages/Login';
+import { ChangePassword } from './pages/ChangePassword';
+import { AdminSaml } from './pages/AdminSaml';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { api } from './api/client';
 
 export default function App() {
+  const [role, setRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    api
+      .me()
+      .then((u) => setRole(u?.role || null))
+      .catch(() => setRole(null));
+  }, []);
+
   return (
     <div className="app">
       <nav className="sidebar">
@@ -24,14 +39,18 @@ export default function App() {
           <NavLink to="/dashboard">Dashboard</NavLink>
           <NavLink to="/auditoria">Auditoria</NavLink>
           <NavLink to="/riscos">Riscos</NavLink>
+          {role === 'ADMIN' && <NavLink to="/admin/saml">Config. SAML</NavLink>}
         </div>
       </nav>
       <main className="main">
         <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/trocar-senha" element={<ChangePassword />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/auditoria" element={<Auditoria />} />
-          <Route path="/riscos" element={<Riscos />} />
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/auditoria" element={<ProtectedRoute><Auditoria /></ProtectedRoute>} />
+          <Route path="/riscos" element={<ProtectedRoute><Riscos /></ProtectedRoute>} />
+          <Route path="/admin/saml" element={<ProtectedRoute><AdminSaml /></ProtectedRoute>} />
         </Routes>
       </main>
     </div>
