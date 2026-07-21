@@ -18,7 +18,7 @@
     "@nestjs/core": "^10.4.0",
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.4.0",
-    "@node-saml/passport-saml": "^5.0.0",
+    "@node-saml/node-saml": "^4.0.5",
     "@prisma/client": "^5.19.0",
     "bcryptjs": "^2.4.3",
     "connect-pg-simple": "^9.0.1",

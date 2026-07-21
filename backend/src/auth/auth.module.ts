@@ -1,18 +1,17 @@
 import { Module } from '@nestjs/common';
 import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller';
+import { SamlConfigController } from './saml-config.controller';
 import { SessionSerializer } from './session.serializer';
-import { SamlStrategy } from './saml.strategy';
 import { AuthenticatedGuard } from './authenticated.guard';
-
-const providers: any[] = [SessionSerializer, AuthenticatedGuard];
-// só registra a estratégia SAML se estiver configurada
-if (process.env.SAML_ENTRY_POINT) providers.push(SamlStrategy);
+import { RolesGuard } from './roles.guard';
+import { SamlConfigService } from './saml-config.service';
+import { LocalAdminAccountService } from './local-admin-account.service';
 
 @Module({
   imports: [PassportModule.register({ session: true })],
-  controllers: [AuthController],
-  providers,
-  exports: [AuthenticatedGuard],
+  controllers: [AuthController, SamlConfigController],
+  providers: [SessionSerializer, AuthenticatedGuard, RolesGuard, SamlConfigService, LocalAdminAccountService],
+  exports: [AuthenticatedGuard, RolesGuard],
 })
 export class AuthModule {}
