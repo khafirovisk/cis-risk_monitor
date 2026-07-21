@@ -1,14 +1,12 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import session from 'express-session';
-import * as passport from 'passport';
+import passport from 'passport';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.setGlobalPrefix('api');
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   const isProd = process.env.NODE_ENV === 'production';
   app.set('trust proxy', 1); // atrás do Nginx
