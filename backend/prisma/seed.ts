@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -53,6 +54,30 @@ async function main() {
         },
       });
     }
+  }
+
+  const samlEntryPoint = process.env.SAML_ENTRY_POINT;
+  await prisma.samlConfig.upsert({
+    where: { id: 1 },
+    update: {},
+    create: {
+      id: 1,
+      enabled: Boolean(samlEntryPoint),
+      entryPoint: samlEntryPoint || null,
+      issuer: process.env.SAML_ISSUER || 'sentinela-cis',
+      callbackUrl: process.env.SAML_CALLBACK_URL || null,
+      idpCert: process.env.SAML_IDP_CERT || null,
+      wantAssertionsSigned: true,
+    },
+  });
+
+  const existingAdmin = await prisma.localAdminAccount.findUnique({ where: { id: 1 } });
+  if (!existingAdmin) {
+    const passwordHash = await bcrypt.hash('admin', 12);
+    await prisma.localAdminAccount.create({
+      data: { id: 1, username: 'admin', passwordHash, mustChangePassword: true },
+    });
+    console.log('Conta local de emergência criada: admin / admin (troca de senha obrigatória no 1º login).');
   }
 
   const total = await prisma.safeguard.count();
