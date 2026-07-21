@@ -37,8 +37,13 @@ export class AuthController {
     }
 
     const saml = this.buildSaml(config);
-    const { profile } = await saml.validatePostResponseAsync(req.body as Record<string, string>);
-    const user = await this.upsertSamlUser(profile);
+    let user: { id: string; email: string; name: string | null; role: string };
+    try {
+      const { profile } = await saml.validatePostResponseAsync(req.body as Record<string, string>);
+      user = await this.upsertSamlUser(profile);
+    } catch {
+      return res.redirect('/login?error=saml_falha');
+    }
 
     req.login(user, (err) => {
       if (err) return res.redirect('/login?error=saml_falha');

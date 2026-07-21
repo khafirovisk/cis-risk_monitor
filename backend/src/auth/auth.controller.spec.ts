@@ -91,4 +91,24 @@ describe('AuthController', () => {
     expect(localAdmin.changePassword).toHaveBeenCalledWith('admin', 'nova12345');
     expect(req.user.mustChangePassword).toBe(false);
   });
+
+  it('callback redireciona para /login?error=saml_falha quando validatePostResponseAsync rejeita', async () => {
+    samlConfig.getConfig.mockResolvedValue({
+      enabled: true, entryPoint: 'https://idp.example.com/sso', issuer: 'sentinela-cis',
+      callbackUrl: 'https://app/api/auth/saml/callback', idpCert: 'CERT', wantAssertionsSigned: true,
+    });
+    const res = makeRes();
+    const req: any = { body: {}, login: jest.fn() };
+
+    // Mock validatePostResponseAsync to reject
+    const { SAML } = require('@node-saml/node-saml');
+    const mockSamlInstance = { validatePostResponseAsync: jest.fn().mockRejectedValueOnce(new Error('invalid SAML response')) };
+    SAML.mockImplementation(() => mockSamlInstance);
+
+    await controller.callback(req, res as any);
+
+    expect(res.redirect).toHaveBeenCalledWith('/login?error=saml_falha');
+    expect(prisma.user.upsert).not.toHaveBeenCalled();
+    expect(req.login).not.toHaveBeenCalled();
+  });
 });
