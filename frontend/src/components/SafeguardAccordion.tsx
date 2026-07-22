@@ -1,5 +1,15 @@
 import { useState } from 'react';
 import { api } from '../api/client';
+import { showToast } from '../lib/toast';
+
+const FUNC_PT: Record<string, string> = {
+  Identify: 'Identificar', Protect: 'Proteger', Detect: 'Detectar',
+  Respond: 'Responder', Recover: 'Recuperar', Govern: 'Governar',
+};
+const ASSET_PT: Record<string, string> = {
+  Devices: 'Dispositivos', Software: 'Software', Data: 'Dados',
+  Users: 'Usuários', Network: 'Rede', Documentation: 'Documentação',
+};
 
 const LEVELS = [
   { v: 0, nome: '0 · Inexistente', desc: 'Nada implementado' },
@@ -32,6 +42,7 @@ export function SafeguardAccordion({
   async function save() {
     await api.setItem(assessmentId, safeguard.id, { maturity: na ? null : maturity, na, evidenceText });
     setSavedAt(new Date().toLocaleTimeString('pt-BR'));
+    showToast(`Avaliação de ${safeguard.code} salva`);
     onSaved();
   }
 
@@ -40,6 +51,7 @@ export function SafeguardAccordion({
     setUploading(true);
     try {
       await api.uploadEvidences(assessmentId, safeguard.id, Array.from(files));
+      showToast('Evidência anexada');
       onSaved();
     } finally {
       setUploading(false);
@@ -48,6 +60,7 @@ export function SafeguardAccordion({
 
   async function removeEvidence(id: string) {
     await api.deleteEvidence(id);
+    showToast('Evidência removida');
     onSaved();
   }
 
@@ -57,7 +70,10 @@ export function SafeguardAccordion({
     <div className={`sg${open ? ' open' : ''}`}>
       <button className="sg-head" aria-expanded={open} onClick={() => setOpen(!open)}>
         <span className="sg-id num">{safeguard.code}</span>
-        <span className="sg-title">{safeguard.titlePt}</span>
+        <span className="sg-title">
+          {safeguard.titlePt}
+          <small>{FUNC_PT[safeguard.securityFunction] || safeguard.securityFunction} · {ASSET_PT[safeguard.assetClass] || safeguard.assetClass}</small>
+        </span>
         <span className="sg-badges">
           {['ig1', 'ig2', 'ig3'].filter((k) => safeguard[k]).map((k) => <span key={k} className="tag ig">{k.toUpperCase()}</span>)}
           {evCount > 0 && <span className="tag">📎 {evCount}</span>}

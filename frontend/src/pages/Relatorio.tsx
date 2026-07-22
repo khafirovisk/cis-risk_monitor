@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
+import { showToast } from '../lib/toast';
 import { ensureAssessment } from './useAssessment';
 
 function levelText(m: number | null | undefined, na: boolean) {
@@ -14,35 +15,35 @@ export function Relatorio() {
   const [rows, setRows] = useState<any[] | null>(null);
   const [exportPayload, setExportPayload] = useState<any>(null);
 
-  useEffect(() => {
-    (async () => {
-      const a = await ensureAssessment();
-      const [controls, full, risks] = await Promise.all([api.controls(), api.assessment(a.id), api.risks()]);
-      const itemsById: Record<string, any> = {};
-      full.items.forEach((it: any) => (itemsById[it.safeguardId] = it));
-      const list: any[] = [];
-      const ig = igField(a.scopeIg);
-      controls.forEach((c: any) => c.safeguards.filter((s: any) => s[ig]).forEach((s: any) => {
-        const it = itemsById[s.id];
-        const evCount = (it?.evidenceText?.trim() ? 1 : 0) + (it?.evidences?.length || 0);
-        list.push({
-          code: s.code,
-          titlePt: s.titlePt,
-          controlTitle: c.titlePt,
-          igs: ['ig1', 'ig2', 'ig3'].filter((k) => s[k]).map((k) => k.toUpperCase()),
-          maturity: it?.maturity ?? null,
-          na: !!it?.na,
-          evCount,
-          updatedAt: it?.updatedAt || null,
-        });
-      }));
-      setRows(list);
-      setExportPayload({
-        versao: 'CIS v8.1.2', escopo: 'IG' + a.scopeIg, exportadoEm: new Date().toISOString(),
-        avaliacao: full, riscos: risks,
+  async function load() {
+    const a = await ensureAssessment();
+    const [controls, full, risks] = await Promise.all([api.controls(), api.assessment(a.id), api.risks()]);
+    const itemsById: Record<string, any> = {};
+    full.items.forEach((it: any) => (itemsById[it.safeguardId] = it));
+    const list: any[] = [];
+    const ig = igField(a.scopeIg);
+    controls.forEach((c: any) => c.safeguards.filter((s: any) => s[ig]).forEach((s: any) => {
+      const it = itemsById[s.id];
+      const evCount = (it?.evidenceText?.trim() ? 1 : 0) + (it?.evidences?.length || 0);
+      list.push({
+        code: s.code,
+        titlePt: s.titlePt,
+        controlTitle: c.titlePt,
+        igs: ['ig1', 'ig2', 'ig3'].filter((k) => s[k]).map((k) => k.toUpperCase()),
+        maturity: it?.maturity ?? null,
+        na: !!it?.na,
+        evCount,
+        updatedAt: it?.updatedAt || null,
       });
-    })().catch(console.error);
-  }, []);
+    }));
+    setRows(list);
+    setExportPayload({
+      versao: 'CIS v8.1.2', escopo: 'IG' + a.scopeIg, exportadoEm: new Date().toISOString(),
+      avaliacao: full, riscos: risks,
+    });
+  }
+
+  useEffect(() => { load().catch(console.error); }, []);
 
   function exportJSON() {
     const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json' });
@@ -51,6 +52,22 @@ export function Relatorio() {
     a.download = 'sentinela-cis-' + new Date().toISOString().slice(0, 10) + '.json';
     a.click();
     URL.revokeObjectURL(a.href);
+    showToast('Avaliação e riscos exportados');
+  }
+
+  async function limparTudo() {
+    if (!confirm('Apagar TODOS os dados registrados (avaliação e riscos)? Essa ação não pode ser desfeita.')) return;
+    const a = await ensureAssessment();
+    const [full, risks] = await Promise.all([api.assessment(a.id), api.risks()]);
+    await Promise.all([
+      ...full.items.flatMap((it: any) => [
+        api.setItem(a.id, it.safeguardId, { maturity: null, na: false, evidenceText: '' }),
+        ...(it.evidences || []).map((ev: any) => api.deleteEvidence(ev.id)),
+      ]),
+      ...risks.map((r: any) => api.deleteRisk(r.id)),
+    ]);
+    showToast('Dados apagados');
+    await load();
   }
 
   if (!rows) return <p className="page-sub">Carregando…</p>;
@@ -65,6 +82,7 @@ export function Relatorio() {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button className="btn" onClick={exportJSON}>Exportar JSON</button>
           <button className="btn ghost" onClick={() => window.print()}>Imprimir</button>
+          <button className="btn danger" onClick={limparTudo}>Limpar tudo</button>
         </div>
       </div>
       <div className="card" style={{ padding: 0, overflowX: 'auto' }}>

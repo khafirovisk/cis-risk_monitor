@@ -2,9 +2,14 @@
 
 > Este arquivo é lido automaticamente por qualquer sessão nova do Claude Code
 > aberta neste diretório. Serve para retomar o trabalho sem perder contexto.
-> Atualizado em 2026-07-22. O ajuste de sidebar/Configurações descrito em
-> "Em andamento agora" foi **concluído e verificado** (não commitado ainda —
-> ver nota no topo daquela seção).
+> Atualizado em 2026-07-22. Sidebar/Configurações, `install.sh`, README e todo
+> o backlog de `docs/DESIGN-PARITY-TODO.md` (CSS, toggle IG1/IG2/IG3, riscos
+> vinculados, sistema de toast, botão "Limpar tudo") foram **implementados e
+> verificados** (35/35 testes backend, tsc limpo, Playwright). Ainda não
+> commitado nem mesclado em `main` — ver `git status` neste worktree.
+> Depois de rodar "Limpar tudo" durante a verificação, o banco de dev ficou
+> **totalmente limpo** (0 riscos, 0/130 avaliadas) — não é mais "2/130", esse
+> número antigo em qualquer nota anterior está desatualizado.
 
 ## O que é este projeto
 
@@ -18,12 +23,14 @@ de riscos, com SSO SAML dinâmico + fallback de login local de emergência.
 
 ## Estado do branch/merge
 
-- `worktree-saml-local-auth` já foi **mergeado localmente em `main`** (merge
-  commit `d58ec2e` no checkout principal) — 35/35 testes backend passam e o
-  frontend compila limpo no `main` mesclado.
-- **Não foi feito push para o origin** (GitHub `khafirovisk/cis-risk_monitor`)
-  ainda — isso é uma decisão pendente do usuário, não esqueça de perguntar
-  antes de fazer.
+- `worktree-saml-local-auth` está **mergeado em `main` e pushado pro origin**
+  (GitHub `khafirovisk/cis-risk_monitor`) — `main` e `origin/main` em sincronia
+  na última checagem. 35/35 testes backend passam e o frontend compila limpo.
+  Fluxo de merge usado toda vez: `cd` pro checkout principal
+  (`C:\Users\LN-SDJIWOE1\projetos\cis-risk_monitor`), `git merge
+  worktree-saml-local-auth --no-edit`, rodar testes, e o `git push origin
+  main` é executado pelo usuário (fica bloqueado pro assistente pelo
+  classificador do modo auto).
 - Uma stash foi deixada no checkout `main` com um rascunho antigo e
   abandonado do schema SAML (mensagem: "stale pre-worktree draft...") — pode
   ser descartada com segurança quando o usuário quiser (`git stash list` /

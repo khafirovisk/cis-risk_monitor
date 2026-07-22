@@ -4,52 +4,36 @@ import { api } from '../api/client';
 import { Gauge } from '../components/Gauge';
 import { Spectrum } from '../components/Spectrum';
 import { RiskMatrix } from '../components/RiskMatrix';
-import { LEVEL_COLOR } from '../lib/maturity';
+import { LEVEL_COLOR, GAUGE_BANDS, ctrlStats, scopedSafeguards, assessmentStats } from '../lib/maturity';
 import { isActive, sevKey, SEV_LABEL, taskStats } from '../lib/risk';
 import { computeInsights } from '../lib/insights';
 import { ensureAssessment } from './useAssessment';
 
-const igField = (ig: number) => (ig === 1 ? 'ig1' : ig === 3 ? 'ig3' : 'ig2');
-
 export function Dashboard() {
-  const [sum, setSum] = useState<any>(null);
   const [controls, setControls] = useState<any[]>([]);
   const [itemsById, setItemsById] = useState<Record<string, any>>({});
   const [risks, setRisks] = useState<any[]>([]);
+  const [scopeIg, setScopeIg] = useState<number | null>(null);
   const [matrixMode, setMatrixMode] = useState<'inerente' | 'residual'>('residual');
   const navigate = useNavigate();
 
   useEffect(() => {
     (async () => {
       const a = await ensureAssessment();
-      const [s, cs, full, rs] = await Promise.all([
-        api.summary(a.id), api.controls(), api.assessment(a.id), api.risks(),
-      ]);
-      setSum(s);
+      const [cs, full, rs] = await Promise.all([api.controls(), api.assessment(a.id), api.risks()]);
       setControls(cs);
       setRisks(rs);
+      setScopeIg(a.scopeIg);
       const map: Record<string, any> = {};
       full.items.forEach((it: any) => (map[it.safeguardId] = it));
       setItemsById(map);
     })().catch(console.error);
   }, []);
 
-  if (!sum) return <p className="page-sub">Carregando…</p>;
+  if (scopeIg == null || !controls.length) return <p className="page-sub">Carregando…</p>;
 
-  const ig = igField(sum.scopeIg);
-  const scopedSafeguards = (c: any) => c.safeguards.filter((s: any) => s[ig]);
-
-  function ctrlStats(c: any) {
-    const sgs = scopedSafeguards(c);
-    let answered = 0, applicable = 0, total = 0;
-    sgs.forEach((s: any) => {
-      const it = itemsById[s.id];
-      if (it?.na) return;
-      applicable++;
-      if (it && typeof it.maturity === 'number') { answered++; total += it.maturity; }
-    });
-    return { total: sgs.length, answered, applicable, avg: applicable ? total / applicable : null };
-  }
+  const stats = assessmentStats(controls, itemsById, scopeIg);
+  const bandNow = stats.pct == null ? null : GAUGE_BANDS.find((b) => stats.pct! <= b.hi) || GAUGE_BANDS[GAUGE_BANDS.length - 1];
 
   const activeRisks = risks.filter((r) => isActive(r.status));
   const sevAltos = activeRisks.filter((r) => r.probResidual * r.impactResidual >= 10).length;
@@ -61,8 +45,8 @@ export function Dashboard() {
   });
 
   const kpis = [
-    { label: 'Maturidade CIS', value: sum.pct != null ? sum.pct + '%' : '—', sub: sum.avg != null ? `média ${sum.avg.toFixed(1)}/5 · IG${sum.scopeIg}` : `escopo IG${sum.scopeIg}` },
-    { label: 'Salvaguardas avaliadas', value: `${sum.answered}/${sum.total}`, sub: `${Math.round((sum.answered / Math.max(sum.total, 1)) * 100)}% do escopo` },
+    { label: 'Maturidade CIS', value: stats.pct != null ? stats.pct + '%' : '—', sub: stats.avg != null ? `média ${stats.avg.toFixed(1)}/5 · IG${scopeIg}` : `escopo IG${scopeIg}` },
+    { label: 'Salvaguardas avaliadas', value: `${stats.answered}/${stats.total}`, sub: `${Math.round((stats.answered / Math.max(stats.total, 1)) * 100)}% do escopo` },
     { label: 'Riscos ativos', value: activeRisks.length, sub: `${sevAltos} altos/críticos (residual)` },
     { label: 'Tarefas em aberto', value: openTasks, sub: overdueTotal ? <span className="overdue">{overdueTotal} em atraso</span> : 'nenhuma em atraso' },
   ];
@@ -77,7 +61,7 @@ export function Dashboard() {
 
   const dist = { none: 0, low01: 0, l2: 0, l3: 0, high45: 0, na: 0 };
   let total = 0;
-  controls.forEach((c) => scopedSafeguards(c).forEach((s: any) => {
+  controls.forEach((c) => scopedSafeguards(c, scopeIg).forEach((s: any) => {
     total++;
     const it = itemsById[s.id];
     if (!it || (it.maturity == null && !it.na)) { dist.none++; return; }
@@ -97,17 +81,24 @@ export function Dashboard() {
     { n: dist.na, color: 'var(--border-2)', label: 'N/A' },
   ];
 
-  const insights = computeInsights(controls, itemsById, risks, sum.scopeIg);
+  const insights = computeInsights(controls, itemsById, risks, scopeIg);
 
   const sortedByPriority = [...activeRisks].sort(
     (a, b) => b.probResidual * b.impactResidual - a.probResidual * a.impactResidual,
   );
   function avgMaturityForRisk(r: any) {
     const nums = (r.controls || [])
-      .map((rc: any) => ctrlStats(controls.find((c) => c.number === rc.control.number) || { safeguards: [] }).avg)
+      .map((rc: any) => ctrlStats(controls.find((c) => c.number === rc.control.number) || { safeguards: [] }, itemsById, scopeIg!).avg)
       .filter((v: any) => v != null);
     return nums.length ? nums.reduce((s: number, v: number) => s + v, 0) / nums.length : null;
   }
+
+  let sumAvg = 0, nAvg = 0;
+  controls.forEach((c) => {
+    const a = ctrlStats(c, itemsById, scopeIg!).avg;
+    if (a != null) { sumAvg += a; nAvg++; }
+  });
+  const overallSpectrumAvg = nAvg ? sumAvg / nAvg : null;
 
   return (
     <>
@@ -115,6 +106,14 @@ export function Dashboard() {
         <div>
           <h1 className="page-title">Visão geral — maturidade &amp; riscos</h1>
           <p className="page-sub">Avaliação de maturidade CIS Controls v8.1.2 integrada ao registro de riscos: veja onde os riscos mais severos encontram controles menos maduros.</p>
+        </div>
+        <div className="ig-inline" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span className="k mono" style={{ fontSize: 10.5, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--ink-3)', fontWeight: 700 }}>Escopo</span>
+          <div className="ig-opts">
+            {[1, 2, 3].map((n) => (
+              <button key={n} className={`ig-opt${scopeIg === n ? ' active' : ''}`} onClick={() => setScopeIg(n)}>IG{n}</button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -132,11 +131,21 @@ export function Dashboard() {
         <span className="card-eyebrow">Maturidade geral</span>
         <h2 className="card-title">Índice de maturidade CIS Controls v8.1.2</h2>
         <div className="gauge-wrap">
-          <Gauge pct={sum.pct} />
+          <Gauge pct={stats.pct} />
           <div className="gauge-info">
             <div className="lead">
-              {sum.avg != null ? <>média <b>{sum.avg.toFixed(1)}</b> / 5 · <b>{sum.pct}%</b> de maturidade</> : 'nenhuma salvaguarda aplicável no escopo'}
-              <div style={{ marginTop: 4 }}>{sum.answered}/{sum.total} salvaguardas avaliadas no escopo IG{sum.scopeIg}</div>
+              {stats.avg != null ? <>média <b>{stats.avg.toFixed(1)}</b> / 5 · <b>{stats.pct}%</b> de maturidade</> : 'nenhuma salvaguarda aplicável no escopo'}
+              <div style={{ marginTop: 4 }}>
+                {stats.answered}/{stats.total} salvaguardas avaliadas no escopo IG{scopeIg}
+                {bandNow && <> · <span className="pct-tag" style={{ background: bandNow.c, color: '#fff' }}>{bandNow.lbl}</span></>}
+              </div>
+            </div>
+            <div className="gauge-bands">
+              {GAUGE_BANDS.map((b) => (
+                <div className="gauge-band" key={b.lbl}>
+                  <i style={{ background: b.c }} />{b.lbl}<span className="rng">{b.lo}–{b.hi}%</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -149,8 +158,20 @@ export function Dashboard() {
             <h2 className="card-title">Cobertura dos 18 controles CIS</h2>
             <p className="card-sub" style={{ marginBottom: 0 }}>Cada barra é um controle (01–18); a altura mostra a maturidade média das salvaguardas no escopo. Clique para auditar.</p>
           </div>
+          <div className="spectrum-score mono" style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+            {overallSpectrumAvg != null
+              ? <>média geral <b style={{ color: 'var(--accent)', fontSize: 16 }}>{Math.round((overallSpectrumAvg / 5) * 100)}%</b> · {overallSpectrumAvg.toFixed(1)}/5 · <span className="num">{nAvg}/18</span> controles</>
+              : '18 controles · nenhum avaliado ainda'}
+          </div>
         </div>
-        <Spectrum controls={controls} statsFor={ctrlStats} onSelect={() => navigate('/auditoria')} />
+        <Spectrum controls={controls} statsFor={(c) => ctrlStats(c, itemsById, scopeIg!)} onSelect={() => navigate('/auditoria')} />
+        <div className="legend" style={{ marginTop: 14 }}>
+          <span><i style={{ background: 'var(--crit)' }} />Nível 0–1</span>
+          <span><i style={{ background: 'var(--high)' }} />Nível 2</span>
+          <span><i style={{ background: 'var(--med)' }} />Nível 3</span>
+          <span><i style={{ background: 'var(--low)' }} />Nível 4–5</span>
+          <span><i style={{ background: 'var(--ink-3)' }} />Não avaliado</span>
+        </div>
       </div>
 
       <div className="grid two-col" style={{ marginTop: 14 }}>
@@ -217,7 +238,7 @@ export function Dashboard() {
                 <b>{r.title}</b>
                 <div className="xchips">
                   {(r.controls || []).length === 0 ? <span className="td-muted">Nenhum controle vinculado</span> : r.controls.map((rc: any) => {
-                    const m = ctrlStats(controls.find((c) => c.number === rc.control.number) || { safeguards: [] }).avg;
+                    const m = ctrlStats(controls.find((c) => c.number === rc.control.number) || { safeguards: [] }, itemsById, scopeIg!).avg;
                     const col = LEVEL_COLOR(m == null ? null : Math.round(m));
                     return (
                       <span key={rc.control.number} className="xchip" style={{ color: m == null ? 'var(--ink-3)' : col, borderColor: m == null ? 'var(--border-2)' : col }}>
@@ -241,7 +262,7 @@ export function Dashboard() {
         <h2 className="card-title">Maturidade por controle</h2>
         <p className="card-sub">Média das salvaguardas avaliadas (escala 0–5) — clique para abrir o controle</p>
         {controls.map((c) => {
-          const st = ctrlStats(c);
+          const st = ctrlStats(c, itemsById, scopeIg!);
           return (
             <button key={c.number} className="bar-row" onClick={() => navigate('/auditoria')}>
               <span className="bar-label" title={c.titlePt}>{String(c.number).padStart(2, '0')} · {c.titlePt}</span>

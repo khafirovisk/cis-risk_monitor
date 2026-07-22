@@ -9,6 +9,7 @@ import { ChangePassword } from './pages/ChangePassword';
 import { AdminSaml } from './pages/AdminSaml';
 import { Configuracoes } from './pages/Configuracoes';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { Toast } from './components/Toast';
 import { api } from './api/client';
 
 export default function App() {
@@ -46,13 +47,14 @@ export default function App() {
           <div className="nav-label">Saída</div>
           <NavLink to="/relatorio"><span className="ico">✎</span> Relatório &amp; export</NavLink>
         </div>
-        {role === 'ADMIN' && (
-          <div className="sidebar-foot">
+        <div className="sidebar-foot">
+          {role === 'ADMIN' && (
             <NavLink to="/configuracoes" className={({ isActive }) => `settings-btn${isActive ? ' active' : ''}`}>
               <span className="ico">⚙</span> Configurações
             </NavLink>
-          </div>
-        )}
+          )}
+          CIS Controls v8.1.2 (mar/2025).
+        </div>
       </nav>
       <main className="main">
         <Routes>
@@ -67,6 +69,7 @@ export default function App() {
           <Route path="/admin/saml" element={<ProtectedRoute><AdminSaml /></ProtectedRoute>} />
         </Routes>
       </main>
+      <Toast />
     </div>
   );
 }

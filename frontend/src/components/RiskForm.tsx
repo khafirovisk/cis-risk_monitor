@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
 import { STATUS_LABEL, STATUS_OPTIONS } from '../lib/risk';
+import { showToast } from '../lib/toast';
 
 const PROB_LABELS = ['1 · Rara', '2 · Improvável', '3 · Possível', '4 · Provável', '5 · Quase certa'];
 const IMP_LABELS = ['1 · Insignificante', '2 · Menor', '3 · Moderado', '4 · Maior', '5 · Severo'];
@@ -31,6 +32,7 @@ export function RiskForm({
       dueDate: t.dueDate ? String(t.dueDate).slice(0, 10) : '',
     })),
   );
+  const titleRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose(); }
@@ -48,7 +50,11 @@ export function RiskForm({
   function removeTask(i: number) { setTasks((t) => t.filter((_, idx) => idx !== i)); }
 
   async function save() {
-    if (!title.trim()) return;
+    if (!title.trim()) {
+      showToast('Informe o título do risco');
+      titleRef.current?.focus();
+      return;
+    }
     const body = {
       title: title.trim(),
       description: description.trim() || undefined,
@@ -65,6 +71,7 @@ export function RiskForm({
     };
     if (risk) await api.updateRisk(risk.id, body);
     else await api.createRisk(body);
+    showToast('Risco salvo');
     onSaved();
   }
 
@@ -72,6 +79,7 @@ export function RiskForm({
     if (!risk) return;
     if (!confirm(`Excluir o risco "${risk.title}" e suas tarefas?`)) return;
     await api.deleteRisk(risk.id);
+    showToast('Risco excluído');
     onSaved();
   }
 
@@ -85,7 +93,7 @@ export function RiskForm({
         <div className="modal-body">
           <div className="form-full" style={{ marginTop: 0 }}>
             <label htmlFor="rf-titulo">Título do risco</label>
-            <input className="fld" id="rf-titulo" value={title} onChange={(e) => setTitle(e.target.value)}
+            <input ref={titleRef} className="fld" id="rf-titulo" value={title} onChange={(e) => setTitle(e.target.value)}
               placeholder="Ex.: Ransomware nos servidores de arquivos" />
           </div>
           <div className="form-full">
