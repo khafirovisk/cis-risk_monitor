@@ -1,5 +1,28 @@
 # Deploy em Ubuntu Server (22.04/24.04)
 
+## Instalação automatizada (recomendada)
+
+```bash
+git clone https://github.com/khafirovisk/cis-risk_monitor.git sentinela-cis
+cd sentinela-cis
+sudo ./install.sh
+```
+
+O script cuida de tudo: instala pré-requisitos (Docker, Nginx, Certbot),
+mostra uma tela de configuração (domínio, senhas, segredos — pulada se já
+existir um `.env`), sobe a stack, roda `migrate deploy` + `seed`, e —
+se você informar um domínio — configura Nginx e emite o certificado TLS
+automaticamente. Ao final, imprime o status do deploy e os próximos passos.
+Reexecutável: rodar de novo com um `.env` existente só reaplica migrations
+e reinicia os containers, sem repetir a tela de configuração.
+
+Os passos manuais abaixo continuam documentados para quem preferir rodar
+cada etapa na mão ou entender o que o script faz por baixo.
+
+---
+
+## Passo a passo manual
+
 Duas opções: **A) Docker Compose** (recomendada) ou **B) systemd + Nginx nativo**.
 
 ---
