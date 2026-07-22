@@ -3,6 +3,7 @@ import { NavLink, Route, Routes, Navigate } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard';
 import { Auditoria } from './pages/Auditoria';
 import { Riscos } from './pages/Riscos';
+import { Relatorio } from './pages/Relatorio';
 import { Login } from './pages/Login';
 import { ChangePassword } from './pages/ChangePassword';
 import { AdminSaml } from './pages/AdminSaml';
@@ -39,6 +40,7 @@ export default function App() {
           <NavLink to="/dashboard">Dashboard</NavLink>
           <NavLink to="/auditoria">Auditoria</NavLink>
           <NavLink to="/riscos">Riscos</NavLink>
+          <NavLink to="/relatorio">Relatório &amp; export</NavLink>
           {role === 'ADMIN' && <NavLink to="/admin/saml">Config. SAML</NavLink>}
         </div>
       </nav>
@@ -50,6 +52,7 @@ export default function App() {
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/auditoria" element={<ProtectedRoute><Auditoria /></ProtectedRoute>} />
           <Route path="/riscos" element={<ProtectedRoute><Riscos /></ProtectedRoute>} />
+          <Route path="/relatorio" element={<ProtectedRoute><Relatorio /></ProtectedRoute>} />
           <Route path="/admin/saml" element={<ProtectedRoute><AdminSaml /></ProtectedRoute>} />
         </Routes>
       </main>
