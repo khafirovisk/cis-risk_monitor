@@ -13,14 +13,14 @@ import type { Request, Response } from 'express';
 import { SAML } from '@node-saml/node-saml';
 import { PrismaService } from '../prisma/prisma.service';
 import { SamlConfigService, SamlConfigDto } from './saml-config.service';
-import { LocalAdminAccountService } from './local-admin-account.service';
+import { LocalAccountsService } from './local-accounts.service';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private prisma: PrismaService,
     private samlConfig: SamlConfigService,
-    private localAdmin: LocalAdminAccountService,
+    private localAccounts: LocalAccountsService,
   ) {}
 
   // Inicia o SSO -> redireciona ao IdP. Config lida do banco a cada chamada
@@ -68,7 +68,7 @@ export class AuthController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
-    const result = await this.localAdmin.login(body.username, body.password);
+    const result = await this.localAccounts.login(body.username, body.password);
     if (!result.ok) {
       // HttpStatus enum nesta versão do @nestjs/common não tem LOCKED (423 RFC 4918/WebDAV).
       const status = result.reason === 'locked' ? 423 : HttpStatus.UNAUTHORIZED;
@@ -76,9 +76,9 @@ export class AuthController {
     }
 
     const user = {
-      id: 'local-admin',
+      id: result.id,
       username: result.username,
-      role: 'ADMIN',
+      role: result.role,
       mustChangePassword: result.mustChangePassword,
       local: true,
     };
@@ -96,7 +96,7 @@ export class AuthController {
     if (!req.isAuthenticated?.() || !(req.user as any)?.local) {
       throw new UnauthorizedException();
     }
-    await this.localAdmin.changePassword(body.currentPassword, body.newPassword);
+    await this.localAccounts.changePassword((req.user as any).id, body.currentPassword, body.newPassword);
     if (req.user) (req.user as any).mustChangePassword = false;
     return { ok: true };
   }

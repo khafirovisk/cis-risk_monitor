@@ -17,14 +17,14 @@ function makeRes() {
 describe('AuthController', () => {
   let prisma: any;
   let samlConfig: any;
-  let localAdmin: any;
+  let localAccounts: any;
   let controller: AuthController;
 
   beforeEach(() => {
     prisma = { user: { upsert: jest.fn().mockResolvedValue({ id: 'u1', email: 'ana@empresa.com', name: 'Ana', role: 'ADMIN' }) } };
     samlConfig = { getConfig: jest.fn() };
-    localAdmin = { login: jest.fn(), changePassword: jest.fn() };
-    controller = new AuthController(prisma, samlConfig, localAdmin);
+    localAccounts = { login: jest.fn(), changePassword: jest.fn() };
+    controller = new AuthController(prisma, samlConfig, localAccounts);
   });
 
   it('login redireciona para /login?error=saml_indisponivel quando desabilitado', async () => {
@@ -63,7 +63,7 @@ describe('AuthController', () => {
   });
 
   it('localLogin retorna 423 quando a conta está bloqueada', async () => {
-    localAdmin.login.mockResolvedValue({ ok: false, reason: 'locked', lockedUntilMs: Date.now() + 60_000 });
+    localAccounts.login.mockResolvedValue({ ok: false, reason: 'locked', lockedUntilMs: Date.now() + 60_000 });
     const res = makeRes();
     const req: any = {};
 
@@ -73,26 +73,26 @@ describe('AuthController', () => {
   });
 
   it('localLogin abre sessão quando as credenciais estão corretas', async () => {
-    localAdmin.login.mockResolvedValue({ ok: true, mustChangePassword: true, username: 'admin' });
+    localAccounts.login.mockResolvedValue({ ok: true, mustChangePassword: true, id: 'acc-1', username: 'admin', role: 'ADMIN' });
     const res = makeRes();
     const req: any = { login: jest.fn((_user, cb) => cb(null)) };
 
     await controller.localLogin({ username: 'admin', password: 'admin' }, req, res as any);
 
     expect(req.login).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'local-admin', role: 'ADMIN', mustChangePassword: true }),
+      expect.objectContaining({ id: 'acc-1', role: 'ADMIN', mustChangePassword: true }),
       expect.any(Function),
     );
     expect(res.json).toHaveBeenCalledWith({ ok: true, mustChangePassword: true });
   });
 
-  it('changePassword delega ao LocalAdminAccountService quando há sessão local autenticada', async () => {
+  it('changePassword delega ao LocalAccountsService quando há sessão local autenticada', async () => {
     const req: any = {
       isAuthenticated: () => true,
-      user: { mustChangePassword: true, local: true },
+      user: { id: 'acc-1', mustChangePassword: true, local: true },
     };
     await controller.changePassword({ currentPassword: 'admin', newPassword: 'nova12345' }, req);
-    expect(localAdmin.changePassword).toHaveBeenCalledWith('admin', 'nova12345');
+    expect(localAccounts.changePassword).toHaveBeenCalledWith('acc-1', 'admin', 'nova12345');
     expect(req.user.mustChangePassword).toBe(false);
   });
 
@@ -102,7 +102,7 @@ describe('AuthController', () => {
     await expect(
       controller.changePassword({ currentPassword: 'admin', newPassword: 'nova12345' }, req),
     ).rejects.toBeInstanceOf(UnauthorizedException);
-    expect(localAdmin.changePassword).not.toHaveBeenCalled();
+    expect(localAccounts.changePassword).not.toHaveBeenCalled();
   });
 
   it('changePassword rejeita com UnauthorizedException quando isAuthenticated está ausente', async () => {
@@ -111,7 +111,7 @@ describe('AuthController', () => {
     await expect(
       controller.changePassword({ currentPassword: 'admin', newPassword: 'nova12345' }, req),
     ).rejects.toBeInstanceOf(UnauthorizedException);
-    expect(localAdmin.changePassword).not.toHaveBeenCalled();
+    expect(localAccounts.changePassword).not.toHaveBeenCalled();
   });
 
   it('changePassword rejeita com UnauthorizedException quando a sessão não é da conta local', async () => {
@@ -120,7 +120,7 @@ describe('AuthController', () => {
     await expect(
       controller.changePassword({ currentPassword: 'admin', newPassword: 'nova12345' }, req),
     ).rejects.toBeInstanceOf(UnauthorizedException);
-    expect(localAdmin.changePassword).not.toHaveBeenCalled();
+    expect(localAccounts.changePassword).not.toHaveBeenCalled();
   });
 
   it('callback redireciona para /login?error=saml_falha quando validatePostResponseAsync rejeita', async () => {
