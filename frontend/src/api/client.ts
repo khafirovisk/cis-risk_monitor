@@ -54,4 +54,6 @@ export const api = {
   updateRisk: (id: string, b: any) => req<any>(`/risks/${id}`, { method: 'PUT', body: JSON.stringify(b) }),
   deleteRisk: (id: string) => req<void>(`/risks/${id}`, { method: 'DELETE' }),
   users: () => req<any[]>('/users'),
+  localAccounts: () => req<any[]>('/local-accounts'),
+  createLocalAccount: (b: any) => req<any>('/local-accounts', { method: 'POST', body: JSON.stringify(b) }),
 };
