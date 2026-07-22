@@ -25,7 +25,7 @@ export function AdminSaml() {
       <Link to="/configuracoes" className="back-btn">← Voltar a Configurações</Link>
       <h1 className="page-title">Configuração do SSO (SAML)</h1>
       <p className="page-sub">Alterações aqui têm efeito imediato, sem precisar reiniciar a aplicação.</p>
-      <form onSubmit={save} className="card local-login-form" style={{ maxWidth: 640 }}>
+      <form onSubmit={save} className="card" style={{ maxWidth: 640 }}>
         <label className="checkbox-row">
           <input
             type="checkbox"
@@ -34,23 +34,23 @@ export function AdminSaml() {
           />
           Habilitado
         </label>
-        <label>
-          Entry Point (URL de login do IdP)
-          <input value={config.entryPoint || ''} onChange={(e) => setConfig({ ...config, entryPoint: e.target.value })} />
-        </label>
-        <label>
-          Issuer / Entity ID
-          <input value={config.issuer || ''} onChange={(e) => setConfig({ ...config, issuer: e.target.value })} />
-        </label>
-        <label>
-          Callback URL (ACS)
-          <input value={config.callbackUrl || ''} onChange={(e) => setConfig({ ...config, callbackUrl: e.target.value })} />
-        </label>
-        <label>
-          Certificado do IdP (X.509)
-          <textarea rows={6} value={config.idpCert || ''} onChange={(e) => setConfig({ ...config, idpCert: e.target.value })} />
-        </label>
-        <label className="checkbox-row">
+        <div className="form-full">
+          <label htmlFor="saml-entry">Entry Point (URL de login do IdP)</label>
+          <input className="fld" id="saml-entry" value={config.entryPoint || ''} onChange={(e) => setConfig({ ...config, entryPoint: e.target.value })} />
+        </div>
+        <div className="form-full">
+          <label htmlFor="saml-issuer">Issuer / Entity ID</label>
+          <input className="fld" id="saml-issuer" value={config.issuer || ''} onChange={(e) => setConfig({ ...config, issuer: e.target.value })} />
+        </div>
+        <div className="form-full">
+          <label htmlFor="saml-callback">Callback URL (ACS)</label>
+          <input className="fld" id="saml-callback" value={config.callbackUrl || ''} onChange={(e) => setConfig({ ...config, callbackUrl: e.target.value })} />
+        </div>
+        <div className="form-full">
+          <label htmlFor="saml-cert">Certificado do IdP (X.509)</label>
+          <textarea className="fld" id="saml-cert" rows={6} value={config.idpCert || ''} onChange={(e) => setConfig({ ...config, idpCert: e.target.value })} />
+        </div>
+        <label className="checkbox-row" style={{ marginTop: 12 }}>
           <input
             type="checkbox"
             checked={config.wantAssertionsSigned}
@@ -58,8 +58,10 @@ export function AdminSaml() {
           />
           Exigir asserções assinadas
         </label>
-        <button className="btn" type="submit">Salvar</button>
-        {saved && <p>Configuração salva.</p>}
+        <div className="modal-actions" style={{ justifyContent: 'flex-start', marginTop: 18 }}>
+          <button className="btn" type="submit">Salvar</button>
+          {saved && <span className="saved-note">Configuração salva.</span>}
+        </div>
       </form>
     </>
   );

@@ -43,7 +43,7 @@ export function Riscos() {
           </thead>
           <tbody>
             {risks.length === 0 && (
-              <tr><td colSpan={7} style={{ color: 'var(--ink-3)' }}>Nenhum risco cadastrado ainda. Clique em <b>+ Novo risco</b> para começar.</td></tr>
+              <tr><td colSpan={7} style={{ color: 'var(--ink-3)' }}>Nenhum risco registrado ainda. Clique em <b>+ Novo risco</b> para começar.</td></tr>
             )}
             {[...risks].sort((a, b) => b.probResidual * b.impactResidual - a.probResidual * a.impactResidual).map((r) => {
               const si = r.probInherent * r.impactInherent;
