@@ -26,6 +26,11 @@ export function Configuracoes() {
           <span className="ctrl-name">Branding</span>
           <span className="td-muted">Logo e cor de destaque exibidas na barra lateral e na tela de login.</span>
         </Link>
+        <Link to="/configuracoes/ia" className="card ctrl-card" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <span className="ctrl-num">IA</span>
+          <span className="ctrl-name">IA</span>
+          <span className="td-muted">Serviço de IA que sugere os controles CIS associados a um risco.</span>
+        </Link>
       </div>
     </>
   );

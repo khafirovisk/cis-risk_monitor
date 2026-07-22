@@ -81,4 +81,6 @@ export const api = {
     });
   },
   removeBrandingLogo: () => req<any>('/branding/logo', { method: 'DELETE' }),
+  getAiSettings: () => req<any>('/ai-settings'),
+  updateAiSettings: (b: any) => req<any>('/ai-settings', { method: 'PUT', body: JSON.stringify(b) }),
 };

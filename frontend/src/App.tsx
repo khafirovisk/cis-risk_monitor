@@ -12,6 +12,7 @@ import { Configuracoes } from './pages/Configuracoes';
 import { Usuarios } from './pages/Usuarios';
 import { Seguranca } from './pages/Seguranca';
 import { Branding } from './pages/Branding';
+import { Ai } from './pages/Ai';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Toast } from './components/Toast';
 import { api } from './api/client';
@@ -95,6 +96,7 @@ export default function App() {
           <Route path="/configuracoes/usuarios" element={<ProtectedRoute><Usuarios /></ProtectedRoute>} />
           <Route path="/configuracoes/seguranca" element={<ProtectedRoute><Seguranca /></ProtectedRoute>} />
           <Route path="/configuracoes/branding" element={<ProtectedRoute><Branding /></ProtectedRoute>} />
+          <Route path="/configuracoes/ia" element={<ProtectedRoute><Ai /></ProtectedRoute>} />
           <Route path="/admin/saml" element={<ProtectedRoute><AdminSaml /></ProtectedRoute>} />
         </Route>
       </Routes>

@@ -69,9 +69,8 @@ export function RiskForm({
         done: t.done,
       })),
     };
-    if (risk) await api.updateRisk(risk.id, body);
-    else await api.createRisk(body);
-    showToast('Risco salvo');
+    const saved = risk ? await api.updateRisk(risk.id, body) : await api.createRisk(body);
+    showToast(saved?.aiWarning ? `Risco salvo, mas ${saved.aiWarning}` : 'Risco salvo');
     onSaved();
   }
 
@@ -141,17 +140,28 @@ export function RiskForm({
           <p className="td-muted" style={{ margin: '8px 0 0' }}>
             O <b>inerente</b> é o risco sem controles; o <b>residual</b> é o risco atual, considerando os controles CIS vinculados e o plano de tratamento.
           </p>
-          <div className="form-full">
-            <label>Controles CIS vinculados (mitigam este risco)</label>
-            <div className="ctrl-check-grid">
-              {controls.map((c) => (
-                <label className="ctrl-check" key={c.number}>
-                  <input type="checkbox" checked={selectedControls.includes(c.number)} onChange={() => toggleControl(c.number)} />
-                  <span><b>{String(c.number).padStart(2, '0')}</b> {c.titlePt}</span>
-                </label>
-              ))}
+          {risk ? (
+            <div className="form-full">
+              <label>Controles CIS vinculados (mitigam este risco)</label>
+              <div className="ctrl-check-grid">
+                {controls.map((c) => (
+                  <label className="ctrl-check" key={c.number}>
+                    <input type="checkbox" checked={selectedControls.includes(c.number)} onChange={() => toggleControl(c.number)} />
+                    <span><b>{String(c.number).padStart(2, '0')}</b> {c.titlePt}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="td-muted" style={{ margin: '6px 0 0' }}>
+                Mudar o título ou a descrição acima faz a IA reclassificar os controles automaticamente ao salvar,
+                substituindo a seleção manual feita aqui.
+              </p>
             </div>
-          </div>
+          ) : (
+            <p className="td-muted" style={{ margin: '8px 0 0' }}>
+              Os controles CIS relacionados a este risco serão sugeridos automaticamente por IA ao salvar
+              (configurável em Configurações → IA) — se preciso, ajuste depois na edição do risco.
+            </p>
+          )}
           <div className="form-full">
             <label>Tarefas do plano de tratamento</label>
             {tasks.map((t, i) => (
