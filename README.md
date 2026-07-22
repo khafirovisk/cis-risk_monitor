@@ -34,6 +34,7 @@ Instalação automatizada — instala pré-requisitos (Docker, Nginx, Certbot), 
 ```bash
 git clone https://github.com/khafirovisk/cis-risk_monitor.git sentinela-cis
 cd sentinela-cis
+chmod +x install.sh   # libera a permissão de execução do script
 sudo ./install.sh
 ```
 
