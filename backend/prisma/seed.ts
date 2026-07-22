@@ -71,14 +71,20 @@ async function main() {
     },
   });
 
-  const existingAdmin = await prisma.localAdminAccount.findUnique({ where: { id: 1 } });
+  const existingAdmin = await prisma.localAccount.findUnique({ where: { username: 'admin' } });
   if (!existingAdmin) {
     const passwordHash = await bcrypt.hash('admin', 12);
-    await prisma.localAdminAccount.create({
-      data: { id: 1, username: 'admin', passwordHash, mustChangePassword: true },
+    await prisma.localAccount.create({
+      data: { username: 'admin', role: 'ADMIN', passwordHash, mustChangePassword: true },
     });
     console.log('Conta local de emergência criada: admin / admin (troca de senha obrigatória no 1º login).');
   }
+
+  await prisma.securitySettings.upsert({
+    where: { id: 1 },
+    update: {},
+    create: { id: 1 },
+  });
 
   const total = await prisma.safeguard.count();
   console.log(`Seed concluído: ${data.length} controles, ${total} salvaguardas.`);

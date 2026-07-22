@@ -13,14 +13,14 @@ import type { Request, Response } from 'express';
 import { SAML } from '@node-saml/node-saml';
 import { PrismaService } from '../prisma/prisma.service';
 import { SamlConfigService, SamlConfigDto } from './saml-config.service';
-import { LocalAdminAccountService } from './local-admin-account.service';
+import { LocalAccountsService } from './local-accounts.service';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private prisma: PrismaService,
     private samlConfig: SamlConfigService,
-    private localAdmin: LocalAdminAccountService,
+    private localAccounts: LocalAccountsService,
   ) {}
 
   // Inicia o SSO -> redireciona ao IdP. Config lida do banco a cada chamada
@@ -68,17 +68,53 @@ export class AuthController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
-    const result = await this.localAdmin.login(body.username, body.password);
+    const result = await this.localAccounts.login(body.username, body.password);
     if (!result.ok) {
       // HttpStatus enum nesta versão do @nestjs/common não tem LOCKED (423 RFC 4918/WebDAV).
       const status = result.reason === 'locked' ? 423 : HttpStatus.UNAUTHORIZED;
       return res.status(status).json(result);
     }
 
+    if (result.mfaRequired) {
+      (req.session as any).pendingMfaAccountId = result.id;
+      return res.json({ ok: true, mfaRequired: true });
+    }
+
     const user = {
-      id: 'local-admin',
+      id: result.id,
       username: result.username,
-      role: 'ADMIN',
+      role: result.role,
+      mustChangePassword: result.mustChangePassword,
+      mfaEnrollRequired: result.mfaEnrollRequired,
+      local: true,
+    };
+    req.login(user, (err) => {
+      if (err) return res.status(500).json({ ok: false });
+      res.json({ ok: true, mustChangePassword: result.mustChangePassword, mfaEnrollRequired: result.mfaEnrollRequired });
+    });
+  }
+
+  @Post('local/mfa/login-verify')
+  @HttpCode(HttpStatus.OK)
+  async mfaLoginVerify(
+    @Body() body: { token: string },
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    const pendingId = (req.session as any)?.pendingMfaAccountId;
+    if (!pendingId) throw new UnauthorizedException();
+
+    const result = await this.localAccounts.verifyMfaLogin(pendingId, body.token);
+    if (!result.ok) {
+      const status = result.reason === 'locked' ? 423 : HttpStatus.UNAUTHORIZED;
+      return res.status(status).json(result);
+    }
+
+    delete (req.session as any).pendingMfaAccountId;
+    const user = {
+      id: result.id,
+      username: result.username,
+      role: result.role,
       mustChangePassword: result.mustChangePassword,
       local: true,
     };
@@ -86,6 +122,22 @@ export class AuthController {
       if (err) return res.status(500).json({ ok: false });
       res.json({ ok: true, mustChangePassword: result.mustChangePassword });
     });
+  }
+
+  @Post('local/mfa/enroll')
+  async mfaEnroll(@Req() req: Request) {
+    if (!req.isAuthenticated?.() || !(req.user as any)?.local) throw new UnauthorizedException();
+    if ((req.user as any)?.mustChangePassword) throw new UnauthorizedException();
+    return this.localAccounts.startMfaEnrollment((req.user as any).id);
+  }
+
+  @Post('local/mfa/enroll/verify')
+  async mfaEnrollVerify(@Body() body: { token: string }, @Req() req: Request) {
+    if (!req.isAuthenticated?.() || !(req.user as any)?.local) throw new UnauthorizedException();
+    if ((req.user as any)?.mustChangePassword) throw new UnauthorizedException();
+    const backupCodes = await this.localAccounts.confirmMfaEnrollment((req.user as any).id, body.token);
+    if (req.user) (req.user as any).mfaEnrollRequired = false;
+    return { backupCodes };
   }
 
   @Post('local/change-password')
@@ -96,7 +148,7 @@ export class AuthController {
     if (!req.isAuthenticated?.() || !(req.user as any)?.local) {
       throw new UnauthorizedException();
     }
-    await this.localAdmin.changePassword(body.currentPassword, body.newPassword);
+    await this.localAccounts.changePassword((req.user as any).id, body.currentPassword, body.newPassword);
     if (req.user) (req.user as any).mustChangePassword = false;
     return { ok: true };
   }

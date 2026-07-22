@@ -6,6 +6,8 @@ export function Login() {
   const [showLocal, setShowLocal] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [mfaStep, setMfaStep] = useState(false);
+  const [mfaToken, setMfaToken] = useState('');
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
@@ -14,10 +16,23 @@ export function Login() {
     setError(null);
     try {
       const result = await api.localLogin(username, password);
-      navigate(result.mustChangePassword ? '/trocar-senha' : '/dashboard');
+      if (result.mfaRequired) return setMfaStep(true);
+      navigate(result.mustChangePassword ? '/trocar-senha' : result.mfaEnrollRequired ? '/mfa/configurar' : '/dashboard');
     } catch (err: any) {
       if (err.status === 423) setError('Conta bloqueada temporariamente por tentativas incorretas.');
       else setError('Usuário ou senha inválidos.');
+    }
+  }
+
+  async function submitMfa(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    try {
+      const result = await api.mfaLoginVerify(mfaToken);
+      navigate(result.mustChangePassword ? '/trocar-senha' : '/dashboard');
+    } catch (err: any) {
+      if (err.status === 423) setError('Conta bloqueada temporariamente por tentativas incorretas.');
+      else setError('Código inválido. Você também pode usar um código de backup.');
     }
   }
 
@@ -25,15 +40,15 @@ export function Login() {
     <div className="login-page">
       <div className="card login-card">
         <h1 className="page-title">Sentinela CIS</h1>
-        <a className="btn" href={SAML_LOGIN_URL}>Entrar com SSO corporativo</a>
+        {!mfaStep && <a className="btn" href={SAML_LOGIN_URL}>Entrar com SSO corporativo</a>}
 
-        {!showLocal && (
+        {!showLocal && !mfaStep && (
           <button className="link-btn" onClick={() => setShowLocal(true)}>
             Problemas com o SSO? Entrar com conta local
           </button>
         )}
 
-        {showLocal && (
+        {showLocal && !mfaStep && (
           <form onSubmit={submitLocal} className="local-login-form">
             <label>
               Usuário
@@ -45,6 +60,17 @@ export function Login() {
             </label>
             {error && <p className="error">{error}</p>}
             <button className="btn" type="submit">Entrar</button>
+          </form>
+        )}
+
+        {mfaStep && (
+          <form onSubmit={submitMfa} className="local-login-form">
+            <label>
+              Código do autenticador (ou código de backup)
+              <input value={mfaToken} onChange={(e) => setMfaToken(e.target.value)} autoFocus />
+            </label>
+            {error && <p className="error">{error}</p>}
+            <button className="btn" type="submit">Confirmar</button>
           </form>
         )}
       </div>

@@ -53,4 +53,13 @@ export const api = {
   createRisk: (b: any) => req<any>('/risks', { method: 'POST', body: JSON.stringify(b) }),
   updateRisk: (id: string, b: any) => req<any>(`/risks/${id}`, { method: 'PUT', body: JSON.stringify(b) }),
   deleteRisk: (id: string) => req<void>(`/risks/${id}`, { method: 'DELETE' }),
+  users: () => req<any[]>('/users'),
+  localAccounts: () => req<any[]>('/local-accounts'),
+  createLocalAccount: (b: any) => req<any>('/local-accounts', { method: 'POST', body: JSON.stringify(b) }),
+  getSecuritySettings: () => req<any>('/security-settings'),
+  updateSecuritySettings: (b: any) => req<any>('/security-settings', { method: 'PUT', body: JSON.stringify(b) }),
+  mfaLoginVerify: (token: string) => req<any>('/auth/local/mfa/login-verify', { method: 'POST', body: JSON.stringify({ token }) }),
+  mfaEnroll: () => req<any>('/auth/local/mfa/enroll', { method: 'POST' }),
+  mfaEnrollVerify: (token: string) => req<any>('/auth/local/mfa/enroll/verify', { method: 'POST', body: JSON.stringify({ token }) }),
+  resetMfa: (id: string) => req<any>(`/local-accounts/${id}/reset-mfa`, { method: 'POST' }),
 };

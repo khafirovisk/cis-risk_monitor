@@ -19,6 +19,11 @@ describe('AuthenticatedGuard', () => {
     expect(guard.canActivate(makeContext(req))).toBe(true);
   });
 
+  it('bloqueia quando mfaEnrollRequired é true, mesmo autenticado e mustChangePassword false', () => {
+    const req = { isAuthenticated: () => true, user: { role: 'ADMIN', mustChangePassword: false, mfaEnrollRequired: true } };
+    expect(guard.canActivate(makeContext(req))).toBe(false);
+  });
+
   it('em produção, sem sessão, bloqueia', () => {
     process.env.NODE_ENV = 'production';
     const req = { isAuthenticated: () => false };

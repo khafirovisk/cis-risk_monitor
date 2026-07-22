@@ -6,8 +6,11 @@ import { Riscos } from './pages/Riscos';
 import { Relatorio } from './pages/Relatorio';
 import { Login } from './pages/Login';
 import { ChangePassword } from './pages/ChangePassword';
+import { MfaEnroll } from './pages/MfaEnroll';
 import { AdminSaml } from './pages/AdminSaml';
 import { Configuracoes } from './pages/Configuracoes';
+import { Usuarios } from './pages/Usuarios';
+import { Seguranca } from './pages/Seguranca';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Toast } from './components/Toast';
 import { api } from './api/client';
@@ -60,12 +63,15 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/trocar-senha" element={<ChangePassword />} />
+          <Route path="/mfa/configurar" element={<MfaEnroll />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/auditoria" element={<ProtectedRoute><Auditoria /></ProtectedRoute>} />
           <Route path="/riscos" element={<ProtectedRoute><Riscos /></ProtectedRoute>} />
           <Route path="/relatorio" element={<ProtectedRoute><Relatorio /></ProtectedRoute>} />
           <Route path="/configuracoes" element={<ProtectedRoute><Configuracoes /></ProtectedRoute>} />
+          <Route path="/configuracoes/usuarios" element={<ProtectedRoute><Usuarios /></ProtectedRoute>} />
+          <Route path="/configuracoes/seguranca" element={<ProtectedRoute><Seguranca /></ProtectedRoute>} />
           <Route path="/admin/saml" element={<ProtectedRoute><AdminSaml /></ProtectedRoute>} />
         </Routes>
       </main>

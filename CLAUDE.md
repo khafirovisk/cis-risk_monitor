@@ -5,11 +5,37 @@
 > Atualizado em 2026-07-22. Sidebar/Configurações, `install.sh`, README e todo
 > o backlog de `docs/DESIGN-PARITY-TODO.md` (CSS, toggle IG1/IG2/IG3, riscos
 > vinculados, sistema de toast, botão "Limpar tudo") foram **implementados e
-> verificados** (35/35 testes backend, tsc limpo, Playwright). Ainda não
-> commitado nem mesclado em `main` — ver `git status` neste worktree.
+> verificados** e depois **mesclados em `main`**.
 > Depois de rodar "Limpar tudo" durante a verificação, o banco de dev ficou
 > **totalmente limpo** (0 riscos, 0/130 avaliadas) — não é mais "2/130", esse
 > número antigo em qualquer nota anterior está desatualizado.
+>
+> **Novo, nesta mesma sessão:** plano de **contas locais multiusuário +
+> Configurações > Segurança + MFA TOTP**
+> (`docs/superpowers/specs/2026-07-22-local-accounts-security-mfa-design.md` +
+> `docs/superpowers/plans/2026-07-22-local-accounts-security-mfa.md`, 7 tasks,
+> via subagent-driven-development) — **implementado, revisado e verificado**
+> (81/81 testes backend, tsc limpo nos dois lados, Playwright cobrindo o
+> fluxo completo de MFA). Ainda **não mesclado em `main`** — ver `git status`/
+> `git log` neste worktree. Resumo do que mudou:
+> - `LocalAdminAccount` (singleton, sempre `id=1`) virou `LocalAccount`
+>   (multi-linha, papel por conta, criação pela tela de Usuários).
+> - Nova tabela/tela `SecuritySettings` / `/configuracoes/seguranca`: política
+>   de senha (tamanho mínimo + maiúscula/número/símbolo) e flag "MFA
+>   obrigatório" para contas locais.
+> - MFA TOTP completo para contas locais: enrollment com QR + 10 códigos de
+>   backup (mostrados uma única vez, hash bcrypt em repouso), segundo fator
+>   no login, reset de MFA pelo admin (recuperação se perder o dispositivo).
+> - Revisão final encontrou e corrigiu, ainda dentro desta mesma sessão: 2
+>   bugs críticos de segurança no MFA (reenrollment sem exigir prova do fator
+>   atual permitia sequestro silencioso de sessão para assumir o MFA de
+>   outra conta; condição de corrida permitia usar o mesmo código de backup
+>   duas vezes), mais 1 bug de UX (`MfaEnroll.tsx` travava num spinner
+>   infinito se o enrollment falhasse) e 1 gap de tratamento de erro (senha
+>   fraca/usuário duplicado ao criar conta local virava "Internal server
+>   error" em vez da mensagem real). Todos corrigidos e re-revisados.
+> - Ledger detalhado desta parte: mesma `.superpowers/sdd/progress.md`,
+>   segunda seção ("Contas locais multiusuário...").
 
 ## O que é este projeto
 
@@ -70,18 +96,14 @@ de riscos, com SSO SAML dinâmico + fallback de login local de emergência.
 
 Tudo isso está rodando via Docker Compose local: `postgres`, `api`, `web`.
 
-## Em andamento agora (implementado e verificado, falta só commitar)
+## Em andamento agora
 
-**Atualização:** as 4 mudanças abaixo (tokens.css, App.tsx, Configuracoes.tsx
-novo, AdminSaml.tsx) já foram feitas, `npx tsc` limpo (só o erro conhecido de
-`ImportMeta.env`), container `web` rebuildado e testado visualmente via
-Playwright — sidebar com seções/ícones/botão de engrenagem, hub
-`/configuracoes`, e os checkboxes do formulário SAML corrigidos, tudo
-conferido. **Falta apenas revisar e commitar** (`git status` vai mostrar
-`frontend/src/styles/tokens.css`, `frontend/src/App.tsx`,
-`frontend/src/pages/AdminSaml.tsx` modificados +
-`frontend/src/pages/Configuracoes.tsx` novo). Nenhum teste automatizado
-backend foi afetado (mudança é só frontend).
+O plano de **contas locais multiusuário + Segurança + MFA TOTP** (ver nota no
+topo deste arquivo) está **implementado, revisado (inclusive revisão final de
+branch inteira) e verificado — 81/81 testes backend, tsc limpo — mas ainda
+não mesclado em `main`**. Próximo passo natural: decidir com o usuário se
+mescla agora (mesmo fluxo já usado nos dois planos anteriores) ou mantém
+como está.
 
 **Cuidado ao rodar `docker compose` neste trabalho:** em algum momento desta
 sessão um comando rodou por engano a partir do checkout `main` (em vez deste
@@ -99,8 +121,9 @@ e/ou avaliaram salvaguardas de teste e esqueceram de limpar depois. Sempre
 que for rodar um teste interativo contra `/riscos` ou `/auditoria`, confirme
 o estado antes (`curl http://localhost:8080/api/risks` deve retornar `[]`,
 e o resumo da avaliação padrão — id `cmrv3a1l1000013cxstchg3rm` — deve
-mostrar `answered: 2, pct: 1` como baseline) e depois (mesmo comando) para
-garantir que voltou exatamente ao mesmo estado.
+mostrar `answered: 0, pct: 0` de um total de 130 salvaguardas aplicáveis no
+escopo IG2, que é o baseline atual pós "Limpar tudo") e depois (mesmo
+comando) para garantir que voltou exatamente ao mesmo estado.
 
 ## Histórico (já resolvido, não precisa retomar)
 
@@ -176,7 +199,7 @@ rebuildar o container `web` (`docker compose build web && docker compose up
   lugar** — não deixe isso se perder de novo. Para resetar na unha, veja o
   script SQL usado (arquivo temporário, já apagado, mas o padrão foi: gerar
   hash com `docker exec saml-local-auth-api-1 node -e "console.log(require('bcryptjs').hashSync('admin', 12))"`,
-  escrever um `.sql` com `UPDATE "LocalAdminAccount" SET "passwordHash"='<hash>', "mustChangePassword"=true, "failedAttempts"=0, "lockedUntil"=NULL WHERE id=1;`,
+  escrever um `.sql` com `UPDATE "LocalAccount" SET "passwordHash"='<hash>', "mustChangePassword"=true, "failedAttempts"=0, "lockedUntil"=NULL WHERE username='admin';`,
   copiar para o container do postgres com `docker cp` e rodar com
   `psql -f` — **nunca interpole o hash bcrypt (`$2a$12$...`) direto numa
   string de shell entre aspas duplas**, o `$2a`/`$12` são interpretados como
@@ -197,6 +220,33 @@ rebuildar o container `web` (`docker compose build web && docker compose up
   Playwright/navegador.
 - App acessível em **http://localhost:8080** (nginx do container `web`
   serve o SPA e faz proxy de `/api` pro container `api`).
+- **`backend/.env` (usado só para rodar `npx prisma`/`npm test`/`npm run seed`
+  direto no host, fora do Docker) apontava para um container Postgres solto e
+  sem relação nenhuma com o app** (`pg-saml-dev`, porta `5433`, criado
+  avulso em algum ponto anterior desta sessão) em vez do Postgres real do
+  `docker compose` (serviço `postgres`, **sem porta publicada pro host** —
+  só acessível via rede interna do Compose, hostname `postgres:5432`). Um
+  subagent implementador rodou `npx prisma migrate reset --force` usando
+  esse `.env` errado: isso **não** afetou os dados reais do app (confirmado
+  via `curl` antes/depois — riscos e avaliação seguiram intactos), mas
+  apagou o `pg-saml-dev` (removido depois, já não existe mais) e fez a
+  migration daquele momento **não ser aplicada de verdade** no banco real —
+  precisou ser aplicada manualmente depois. `backend/.env` agora aponta para
+  `postgres:5432` (mesmas credenciais do `.env` da raiz) — esse hostname só
+  resolve dentro da rede Docker do Compose, então um comando rodado direto
+  no host vai falhar alto (erro de DNS) em vez de silenciosamente acertar o
+  banco errado. **Para rodar `migrate deploy`/seed/etc. de verdade contra o
+  banco real a partir do host**, use um container descartável na mesma rede
+  (o `.env` do backend tem o comando exato em comentário):
+  ```
+  docker run --rm --network saml-local-auth_default -v "$(pwd):/app" -w /app \
+    -e DATABASE_URL="postgresql://sentinela:sentinela@postgres:5432/sentinela" \
+    node:20-bookworm-slim sh -c "apt-get update -qq && apt-get install -y -qq openssl && npx prisma migrate deploy"
+  ```
+  (precisa instalar `openssl` no container, senão o engine do Prisma não
+  detecta a versão de libssl e falha — o próprio `backend/Dockerfile` já faz
+  isso). Em Git Bash/MSYS, prefixe o `docker run` com `MSYS_NO_PATHCONV=1`
+  senão o `-w /app` vira um caminho absoluto do Windows por engano.
 
 ## Recomendações registradas mas não implementadas (aceitas como trade-off, não são bugs)
 

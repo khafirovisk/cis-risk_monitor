@@ -11,7 +11,7 @@ export class AuthenticatedGuard implements CanActivate {
     const req = context.switchToHttp().getRequest();
 
     if (req.isAuthenticated?.()) {
-      return !req.user?.mustChangePassword;
+      return !req.user?.mustChangePassword && !req.user?.mfaEnrollRequired;
     }
 
     if (process.env.NODE_ENV !== 'production') {
