@@ -7,6 +7,7 @@ import { Relatorio } from './pages/Relatorio';
 import { Login } from './pages/Login';
 import { ChangePassword } from './pages/ChangePassword';
 import { AdminSaml } from './pages/AdminSaml';
+import { Configuracoes } from './pages/Configuracoes';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { api } from './api/client';
 
@@ -37,12 +38,21 @@ export default function App() {
           </div>
         </div>
         <div className="nav">
-          <NavLink to="/dashboard">Dashboard</NavLink>
-          <NavLink to="/auditoria">Auditoria</NavLink>
-          <NavLink to="/riscos">Riscos</NavLink>
-          <NavLink to="/relatorio">Relatório &amp; export</NavLink>
-          {role === 'ADMIN' && <NavLink to="/admin/saml">Config. SAML</NavLink>}
+          <div className="nav-label">Visão geral</div>
+          <NavLink to="/dashboard"><span className="ico">◧</span> Dashboard</NavLink>
+          <div className="nav-label">Conformidade &amp; risco</div>
+          <NavLink to="/auditoria"><span className="ico">▤</span> Auditoria</NavLink>
+          <NavLink to="/riscos"><span className="ico">⚠</span> Riscos</NavLink>
+          <div className="nav-label">Saída</div>
+          <NavLink to="/relatorio"><span className="ico">✎</span> Relatório &amp; export</NavLink>
         </div>
+        {role === 'ADMIN' && (
+          <div className="sidebar-foot">
+            <NavLink to="/configuracoes" className={({ isActive }) => `settings-btn${isActive ? ' active' : ''}`}>
+              <span className="ico">⚙</span> Configurações
+            </NavLink>
+          </div>
+        )}
       </nav>
       <main className="main">
         <Routes>
@@ -53,6 +63,7 @@ export default function App() {
           <Route path="/auditoria" element={<ProtectedRoute><Auditoria /></ProtectedRoute>} />
           <Route path="/riscos" element={<ProtectedRoute><Riscos /></ProtectedRoute>} />
           <Route path="/relatorio" element={<ProtectedRoute><Relatorio /></ProtectedRoute>} />
+          <Route path="/configuracoes" element={<ProtectedRoute><Configuracoes /></ProtectedRoute>} />
           <Route path="/admin/saml" element={<ProtectedRoute><AdminSaml /></ProtectedRoute>} />
         </Routes>
       </main>
