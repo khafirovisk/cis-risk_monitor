@@ -99,8 +99,9 @@ e/ou avaliaram salvaguardas de teste e esqueceram de limpar depois. Sempre
 que for rodar um teste interativo contra `/riscos` ou `/auditoria`, confirme
 o estado antes (`curl http://localhost:8080/api/risks` deve retornar `[]`,
 e o resumo da avaliação padrão — id `cmrv3a1l1000013cxstchg3rm` — deve
-mostrar `answered: 2, pct: 1` como baseline) e depois (mesmo comando) para
-garantir que voltou exatamente ao mesmo estado.
+mostrar `answered: 0, pct: 0` de um total de 130 salvaguardas aplicáveis no
+escopo IG2, que é o baseline atual pós "Limpar tudo") e depois (mesmo
+comando) para garantir que voltou exatamente ao mesmo estado.
 
 ## Histórico (já resolvido, não precisa retomar)
 
@@ -197,6 +198,33 @@ rebuildar o container `web` (`docker compose build web && docker compose up
   Playwright/navegador.
 - App acessível em **http://localhost:8080** (nginx do container `web`
   serve o SPA e faz proxy de `/api` pro container `api`).
+- **`backend/.env` (usado só para rodar `npx prisma`/`npm test`/`npm run seed`
+  direto no host, fora do Docker) apontava para um container Postgres solto e
+  sem relação nenhuma com o app** (`pg-saml-dev`, porta `5433`, criado
+  avulso em algum ponto anterior desta sessão) em vez do Postgres real do
+  `docker compose` (serviço `postgres`, **sem porta publicada pro host** —
+  só acessível via rede interna do Compose, hostname `postgres:5432`). Um
+  subagent implementador rodou `npx prisma migrate reset --force` usando
+  esse `.env` errado: isso **não** afetou os dados reais do app (confirmado
+  via `curl` antes/depois — riscos e avaliação seguiram intactos), mas
+  apagou o `pg-saml-dev` (removido depois, já não existe mais) e fez a
+  migration daquele momento **não ser aplicada de verdade** no banco real —
+  precisou ser aplicada manualmente depois. `backend/.env` agora aponta para
+  `postgres:5432` (mesmas credenciais do `.env` da raiz) — esse hostname só
+  resolve dentro da rede Docker do Compose, então um comando rodado direto
+  no host vai falhar alto (erro de DNS) em vez de silenciosamente acertar o
+  banco errado. **Para rodar `migrate deploy`/seed/etc. de verdade contra o
+  banco real a partir do host**, use um container descartável na mesma rede
+  (o `.env` do backend tem o comando exato em comentário):
+  ```
+  docker run --rm --network saml-local-auth_default -v "$(pwd):/app" -w /app \
+    -e DATABASE_URL="postgresql://sentinela:sentinela@postgres:5432/sentinela" \
+    node:20-bookworm-slim sh -c "apt-get update -qq && apt-get install -y -qq openssl && npx prisma migrate deploy"
+  ```
+  (precisa instalar `openssl` no container, senão o engine do Prisma não
+  detecta a versão de libssl e falha — o próprio `backend/Dockerfile` já faz
+  isso). Em Git Bash/MSYS, prefixe o `docker run` com `MSYS_NO_PATHCONV=1`
+  senão o `-w /app` vira um caminho absoluto do Windows por engano.
 
 ## Recomendações registradas mas não implementadas (aceitas como trade-off, não são bugs)
 
