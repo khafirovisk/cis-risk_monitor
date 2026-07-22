@@ -56,4 +56,6 @@ export const api = {
   users: () => req<any[]>('/users'),
   localAccounts: () => req<any[]>('/local-accounts'),
   createLocalAccount: (b: any) => req<any>('/local-accounts', { method: 'POST', body: JSON.stringify(b) }),
+  getSecuritySettings: () => req<any>('/security-settings'),
+  updateSecuritySettings: (b: any) => req<any>('/security-settings', { method: 'PUT', body: JSON.stringify(b) }),
 };
