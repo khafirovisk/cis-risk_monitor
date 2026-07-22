@@ -1,6 +1,11 @@
 import * as bcrypt from 'bcryptjs';
 import { LocalAccountsService } from './local-accounts.service';
 
+function authenticatorSecret(): string {
+  const { authenticator } = require('otplib');
+  return authenticator.generateSecret();
+}
+
 function makeAccount(overrides: Partial<any> = {}) {
   return {
     id: 'acc-1',
@@ -57,7 +62,7 @@ describe('LocalAccountsService', () => {
   it('aceita login correto e retorna id/username/role/mustChangePassword', async () => {
     prisma.localAccount.findUnique.mockResolvedValue(makeAccount());
     const result = await service.login('admin', 'admin');
-    expect(result).toEqual({ ok: true, mustChangePassword: true, id: 'acc-1', username: 'admin', role: 'ADMIN' });
+    expect(result).toEqual({ ok: true, mustChangePassword: true, mfaEnrollRequired: false, id: 'acc-1', username: 'admin', role: 'ADMIN' });
     expect(prisma.localAccount.update).toHaveBeenCalledWith({
       where: { id: 'acc-1' },
       data: { failedAttempts: 0, lockedUntil: null },
@@ -129,5 +134,86 @@ describe('LocalAccountsService', () => {
       data: { username: 'novo', name: null, role: 'AUDITOR', passwordHash: expect.any(String), mustChangePassword: true },
     });
     expect(result).toEqual(expect.objectContaining({ id: 'acc-2', username: 'novo', role: 'AUDITOR' }));
+  });
+
+  it('login com mfaEnabled não abre sessão, pede verificação de TOTP', async () => {
+    prisma.localAccount.findUnique.mockResolvedValue(makeAccount({ mfaEnabled: true, mfaSecret: 'SECRET' }));
+    const result = await service.login('admin', 'admin');
+    expect(result).toEqual({ ok: true, mfaRequired: true, id: 'acc-1' });
+  });
+
+  it('login reporta mfaEnrollRequired quando MFA é obrigatório globalmente e a conta não tem MFA', async () => {
+    security.getConfig.mockResolvedValue({ ...DEFAULT_POLICY, mfaRequired: true });
+    prisma.localAccount.findUnique.mockResolvedValue(makeAccount());
+    const result = await service.login('admin', 'admin');
+    expect(result.mfaEnrollRequired).toBe(true);
+  });
+
+  it('startMfaEnrollment gera um segredo e retorna QR', async () => {
+    prisma.localAccount.findUnique.mockResolvedValue(makeAccount());
+    const enrollment = await service.startMfaEnrollment('acc-1');
+    expect(enrollment.secret).toEqual(expect.any(String));
+    expect(enrollment.qrDataUrl).toMatch(/^data:image\/png;base64,/);
+    expect(prisma.localAccount.update).toHaveBeenCalledWith({ where: { id: 'acc-1' }, data: { mfaSecret: enrollment.secret } });
+  });
+
+  it('confirmMfaEnrollment rejeita token inválido e não habilita MFA', async () => {
+    prisma.localAccount.findUnique.mockResolvedValue(makeAccount({ mfaSecret: authenticatorSecret() }));
+    await expect(service.confirmMfaEnrollment('acc-1', '000000')).rejects.toThrow('Código inválido');
+    expect(prisma.localAccount.update).not.toHaveBeenCalled();
+  });
+
+  it('confirmMfaEnrollment habilita MFA e retorna 10 códigos de backup em claro', async () => {
+    const secret = authenticatorSecret();
+    prisma.localAccount.findUnique.mockResolvedValue(makeAccount({ mfaSecret: secret }));
+    const { authenticator } = require('otplib');
+    const token = authenticator.generate(secret);
+
+    const codes = await service.confirmMfaEnrollment('acc-1', token);
+
+    expect(codes).toHaveLength(10);
+    expect(prisma.localAccount.update).toHaveBeenCalledWith({
+      where: { id: 'acc-1' },
+      data: { mfaEnabled: true, mfaBackupCodes: expect.any(Array) },
+    });
+  }, 15000);
+
+  it('verifyMfaLogin aceita um TOTP válido', async () => {
+    const secret = authenticatorSecret();
+    prisma.localAccount.findUnique.mockResolvedValue(makeAccount({ mfaEnabled: true, mfaSecret: secret }));
+    const { authenticator } = require('otplib');
+    const token = authenticator.generate(secret);
+
+    const result = await service.verifyMfaLogin('acc-1', token);
+
+    expect(result.ok).toBe(true);
+  });
+
+  it('verifyMfaLogin aceita e consome um código de backup válido', async () => {
+    const backupCode = 'abcd-1234';
+    const hashed = await bcrypt.hash(backupCode, 4);
+    prisma.localAccount.findUnique.mockResolvedValue(makeAccount({ mfaEnabled: true, mfaSecret: 'SECRET', mfaBackupCodes: [hashed] }));
+
+    const result = await service.verifyMfaLogin('acc-1', backupCode);
+
+    expect(result.ok).toBe(true);
+    expect(prisma.localAccount.update).toHaveBeenCalledWith({
+      where: { id: 'acc-1' },
+      data: { failedAttempts: 0, lockedUntil: null, mfaBackupCodes: [] },
+    });
+  });
+
+  it('verifyMfaLogin rejeita token/código inválidos e conta como tentativa falha', async () => {
+    prisma.localAccount.findUnique.mockResolvedValue(makeAccount({ mfaEnabled: true, mfaSecret: 'SECRET', mfaBackupCodes: [] }));
+    const result = await service.verifyMfaLogin('acc-1', '000000');
+    expect(result).toEqual({ ok: false, reason: 'invalid' });
+  });
+
+  it('resetMfa limpa o segredo, flag e códigos de backup', async () => {
+    await service.resetMfa('acc-1');
+    expect(prisma.localAccount.update).toHaveBeenCalledWith({
+      where: { id: 'acc-1' },
+      data: { mfaEnabled: false, mfaSecret: null, mfaBackupCodes: [] },
+    });
   });
 });

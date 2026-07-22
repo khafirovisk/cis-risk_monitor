@@ -17,4 +17,14 @@ describe('LocalAccountsController', () => {
 
     expect(svc.create).toHaveBeenCalledWith(body);
   });
+
+  it('resetMfa delega ao service com o id da rota e retorna ok', async () => {
+    const svc: any = { resetMfa: jest.fn().mockResolvedValue(undefined) };
+    const controller = new LocalAccountsController(svc);
+
+    const result = await controller.resetMfa('acc-1');
+
+    expect(svc.resetMfa).toHaveBeenCalledWith('acc-1');
+    expect(result).toEqual({ ok: true });
+  });
 });

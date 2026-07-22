@@ -73,7 +73,7 @@ describe('AuthController', () => {
   });
 
   it('localLogin abre sessão quando as credenciais estão corretas', async () => {
-    localAccounts.login.mockResolvedValue({ ok: true, mustChangePassword: true, id: 'acc-1', username: 'admin', role: 'ADMIN' });
+    localAccounts.login.mockResolvedValue({ ok: true, mustChangePassword: true, mfaEnrollRequired: false, id: 'acc-1', username: 'admin', role: 'ADMIN' });
     const res = makeRes();
     const req: any = { login: jest.fn((_user, cb) => cb(null)) };
 
@@ -83,7 +83,7 @@ describe('AuthController', () => {
       expect.objectContaining({ id: 'acc-1', role: 'ADMIN', mustChangePassword: true }),
       expect.any(Function),
     );
-    expect(res.json).toHaveBeenCalledWith({ ok: true, mustChangePassword: true });
+    expect(res.json).toHaveBeenCalledWith({ ok: true, mustChangePassword: true, mfaEnrollRequired: false });
   });
 
   it('changePassword delega ao LocalAccountsService quando há sessão local autenticada', async () => {
@@ -141,5 +141,58 @@ describe('AuthController', () => {
     expect(res.redirect).toHaveBeenCalledWith('/login?error=saml_falha');
     expect(prisma.user.upsert).not.toHaveBeenCalled();
     expect(req.login).not.toHaveBeenCalled();
+  });
+
+  it('localLogin não abre sessão quando a conta exige verificação de MFA, guarda o accountId pendente', async () => {
+    localAccounts.login.mockResolvedValue({ ok: true, mfaRequired: true, id: 'acc-1' });
+    const res = makeRes();
+    const req: any = { session: {}, login: jest.fn() };
+
+    await controller.localLogin({ username: 'admin', password: 'admin' }, req, res as any);
+
+    expect(req.session.pendingMfaAccountId).toBe('acc-1');
+    expect(req.login).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ ok: true, mfaRequired: true });
+  });
+
+  it('mfaLoginVerify rejeita sem accountId pendente na sessão', async () => {
+    const req: any = { session: {} };
+    await expect(controller.mfaLoginVerify({ token: '000000' }, req, makeRes() as any)).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('mfaLoginVerify abre sessão e limpa o pendingMfaAccountId quando o token é válido', async () => {
+    localAccounts.verifyMfaLogin = jest.fn().mockResolvedValue({ ok: true, mustChangePassword: false, id: 'acc-1', username: 'admin', role: 'ADMIN' });
+    const res = makeRes();
+    const req: any = { session: { pendingMfaAccountId: 'acc-1' }, login: jest.fn((_user, cb) => cb(null)) };
+
+    await controller.mfaLoginVerify({ token: '123456' }, req, res as any);
+
+    expect(req.session.pendingMfaAccountId).toBeUndefined();
+    expect(req.login).toHaveBeenCalledWith(expect.objectContaining({ id: 'acc-1' }), expect.any(Function));
+  });
+
+  it('mfaEnroll rejeita sem sessão local autenticada', async () => {
+    const req: any = { isAuthenticated: () => false };
+    await expect(controller.mfaEnroll(req)).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('mfaEnroll delega ao service com o id da sessão', async () => {
+    localAccounts.startMfaEnrollment = jest.fn().mockResolvedValue({ secret: 'S', otpauthUrl: 'otpauth://x', qrDataUrl: 'data:image/png;base64,x' });
+    const req: any = { isAuthenticated: () => true, user: { id: 'acc-1', local: true } };
+
+    const result = await controller.mfaEnroll(req);
+
+    expect(localAccounts.startMfaEnrollment).toHaveBeenCalledWith('acc-1');
+    expect(result.secret).toBe('S');
+  });
+
+  it('mfaEnrollVerify zera mfaEnrollRequired na sessão e retorna os códigos de backup', async () => {
+    localAccounts.confirmMfaEnrollment = jest.fn().mockResolvedValue(['code-1', 'code-2']);
+    const req: any = { isAuthenticated: () => true, user: { id: 'acc-1', local: true, mfaEnrollRequired: true } };
+
+    const result = await controller.mfaEnrollVerify({ token: '123456' }, req);
+
+    expect(req.user.mfaEnrollRequired).toBe(false);
+    expect(result).toEqual({ backupCodes: ['code-1', 'code-2'] });
   });
 });
