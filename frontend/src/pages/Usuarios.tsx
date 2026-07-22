@@ -47,6 +47,13 @@ export function Usuarios() {
     }
   }
 
+  async function resetMfa(id: string) {
+    if (!confirm('Resetar o MFA desta conta? O usuário precisará configurar novamente no próximo login.')) return;
+    await api.resetMfa(id);
+    showToast('MFA resetado');
+    reload();
+  }
+
   if (!users || !localAccounts) return <p className="page-sub">Carregando…</p>;
 
   return (
@@ -79,10 +86,10 @@ export function Usuarios() {
       <p className="page-sub">Contas com login e senha próprios, independentes do SSO.</p>
       <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
         <table>
-          <thead><tr><th>Usuário</th><th>Nome</th><th>Papel</th><th>MFA</th><th>Status</th></tr></thead>
+          <thead><tr><th>Usuário</th><th>Nome</th><th>Papel</th><th>MFA</th><th>Status</th><th></th></tr></thead>
           <tbody>
             {localAccounts.length === 0 && (
-              <tr><td colSpan={5} style={{ color: 'var(--ink-3)' }}>Nenhum usuário local criado ainda.</td></tr>
+              <tr><td colSpan={6} style={{ color: 'var(--ink-3)' }}>Nenhum usuário local criado ainda.</td></tr>
             )}
             {localAccounts.map((a) => (
               <tr key={a.id}>
@@ -92,6 +99,11 @@ export function Usuarios() {
                 <td>{mfaStatusLabel(a)}</td>
                 <td className="td-muted">
                   {a.lockedUntil && new Date(a.lockedUntil).getTime() > Date.now() ? 'Bloqueada' : a.mustChangePassword ? 'Aguardando 1º login' : 'Ativa'}
+                </td>
+                <td>
+                  {a.mfaEnabled && (
+                    <button className="btn ghost sm" onClick={() => resetMfa(a.id)}>Resetar MFA</button>
+                  )}
                 </td>
               </tr>
             ))}

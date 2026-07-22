@@ -6,6 +6,7 @@ import { Riscos } from './pages/Riscos';
 import { Relatorio } from './pages/Relatorio';
 import { Login } from './pages/Login';
 import { ChangePassword } from './pages/ChangePassword';
+import { MfaEnroll } from './pages/MfaEnroll';
 import { AdminSaml } from './pages/AdminSaml';
 import { Configuracoes } from './pages/Configuracoes';
 import { Usuarios } from './pages/Usuarios';
@@ -62,6 +63,7 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/trocar-senha" element={<ChangePassword />} />
+          <Route path="/mfa/configurar" element={<MfaEnroll />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/auditoria" element={<ProtectedRoute><Auditoria /></ProtectedRoute>} />
