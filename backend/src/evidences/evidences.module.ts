@@ -1,0 +1,10 @@
+import { Module } from '@nestjs/common';
+import { EvidencesService } from './evidences.service';
+import { EvidencesController } from './evidences.controller';
+
+@Module({
+  providers: [EvidencesService],
+  controllers: [EvidencesController],
+  exports: [EvidencesService],
+})
+export class EvidencesModule {}

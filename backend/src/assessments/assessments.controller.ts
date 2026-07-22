@@ -1,12 +1,17 @@
-import { Body, Controller, Get, Param, Post, Put, Req, UseGuards } from '@nestjs/common';
+import {
+  Body, Controller, Get, Param, Post, Put, Req, UseGuards, UseInterceptors, UploadedFiles,
+} from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import type { Request } from 'express';
 import { AssessmentsService } from './assessments.service';
+import { EvidencesService } from '../evidences/evidences.service';
 import { AuthenticatedGuard } from '../auth/authenticated.guard';
 
 @Controller('assessments')
 @UseGuards(AuthenticatedGuard)
 export class AssessmentsController {
-  constructor(private svc: AssessmentsService) {}
+  constructor(private svc: AssessmentsService, private evidences: EvidencesService) {}
 
   @Get()
   list() {
@@ -36,5 +41,17 @@ export class AssessmentsController {
     @Req() req: Request,
   ) {
     return this.svc.setItem(id, safeguardId, { ...body, updatedBy: (req.user as any)?.email });
+  }
+
+  @Post(':id/items/:safeguardId/evidences')
+  @UseInterceptors(FilesInterceptor('files', 10, { storage: memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }))
+  async uploadEvidences(
+    @Param('id') id: string,
+    @Param('safeguardId') safeguardId: string,
+    @UploadedFiles() files: Express.Multer.File[],
+    @Req() req: Request,
+  ) {
+    const item = await this.svc.ensureItem(id, safeguardId);
+    return this.evidences.saveMany(item.id, files ?? [], (req.user as any)?.email);
   }
 }

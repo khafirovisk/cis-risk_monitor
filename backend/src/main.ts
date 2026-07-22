@@ -1,19 +1,28 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
-import * as session from 'express-session';
-import * as passport from 'passport';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import session from 'express-session';
+import passport from 'passport';
+import { Pool } from 'pg';
+import connectPgSimple from 'connect-pg-simple';
 import { AppModule } from './app.module';
 
+const PgSession = connectPgSimple(session);
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.setGlobalPrefix('api');
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   const isProd = process.env.NODE_ENV === 'production';
   app.set('trust proxy', 1); // atrás do Nginx
 
+  // Sessões persistidas no Postgres (mesma base do Prisma) — sobrevivem a
+  // restart/redeploy do backend. Sem isso o express-session usa MemoryStore,
+  // derrubando todas as sessões (SAML e local-admin) a cada restart.
+  const sessionPool = new Pool({ connectionString: process.env.DATABASE_URL });
+
   app.use(
     session({
+      store: new PgSession({ pool: sessionPool, createTableIfMissing: true }),
       secret: process.env.SESSION_SECRET || 'dev-secret',
       resave: false,
       saveUninitialized: false,

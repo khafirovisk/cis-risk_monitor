@@ -158,3 +158,26 @@ model AuditLog {
   meta     Json?
   at       DateTime @default(now())
 }
+
+// ---------- Autenticação: SAML dinâmico + conta local ----------
+model SamlConfig {
+  id                   Int      @id @default(1)
+  enabled              Boolean  @default(false)
+  entryPoint           String?
+  issuer               String   @default("sentinela-cis")
+  callbackUrl          String?
+  idpCert              String?
+  wantAssertionsSigned Boolean  @default(true)
+  updatedBy            String?
+  updatedAt            DateTime @updatedAt
+}
+
+model LocalAdminAccount {
+  id                 Int       @id @default(1)
+  username           String    @unique @default("admin")
+  passwordHash       String
+  mustChangePassword Boolean   @default(true)
+  failedAttempts     Int       @default(0)
+  lockedUntil        DateTime?
+  updatedAt          DateTime  @updatedAt
+}

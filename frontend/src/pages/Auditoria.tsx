@@ -1,18 +1,14 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
-import { LEVEL_COLOR, matPct } from '../lib/maturity';
+import { LEVEL_COLOR } from '../lib/maturity';
 import { ensureAssessment } from './useAssessment';
-
-const LEVELS = [
-  '0 · Inexistente', '1 · Inicial', '2 · Documentado',
-  '3 · Implementado', '4 · Gerenciado', '5 · Otimizado',
-];
+import { SafeguardAccordion } from '../components/SafeguardAccordion';
 
 export function Auditoria() {
   const [assessmentId, setId] = useState<string>('');
   const [controls, setControls] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
-  const [open, setOpen] = useState<any>(null);   // controle aberto
+  const [open, setOpen] = useState<any>(null);
   const [items, setItems] = useState<Record<string, any>>({});
 
   async function reload(id: string) {
@@ -33,11 +29,6 @@ export function Auditoria() {
   }, []);
 
   const pctOf = (n: number) => summary?.controls.find((c: any) => c.number === n)?.pct ?? null;
-
-  async function save(sgId: string, maturity: number | null, na: boolean) {
-    await api.setItem(assessmentId, sgId, { maturity, na });
-    await reload(assessmentId);
-  }
 
   if (!controls.length) return <p className="page-sub">Carregando…</p>;
 
@@ -68,33 +59,18 @@ export function Auditoria() {
         </div>
       ) : (
         <div>
-          <button className="btn" style={{ background: 'var(--surface)', color: 'var(--accent)', border: '1px solid var(--border-2)', marginBottom: 12 }} onClick={() => setOpen(null)}>← Voltar</button>
+          <button className="back-btn" onClick={() => setOpen(null)}>← Voltar à auditoria</button>
           <h2 className="page-title" style={{ fontSize: 18 }}>{String(open.number).padStart(2, '0')} · {open.titlePt}</h2>
           <p className="page-sub">{open.descPt}</p>
-          {open.safeguards.map((s: any) => {
-            const it = items[s.id];
-            return (
-              <div className="card" key={s.id} style={{ marginBottom: 10 }}>
-                <div className="mono" style={{ color: 'var(--accent)', fontWeight: 700 }}>{s.code} — {s.titlePt}</div>
-                <div style={{ background: 'var(--accent-soft)', borderLeft: '3px solid var(--accent)', padding: '8px 12px', borderRadius: '0 8px 8px 0', margin: '8px 0', fontWeight: 600 }}>{s.questionPt}</div>
-                <ul style={{ margin: '0 0 8px', paddingLeft: 20, color: 'var(--ink-2)' }}>
-                  {s.examplesPt.map((e: string, i: number) => <li key={i}>{e}</li>)}
-                </ul>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <select className="mono" value={it?.na ? 'na' : (it?.maturity ?? '')} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border-2)' }}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      save(s.id, v === 'na' || v === '' ? null : Number(v), v === 'na');
-                    }}>
-                    <option value="">— não avaliado (0) —</option>
-                    {LEVELS.map((l, i) => <option key={i} value={i}>{l}</option>)}
-                    <option value="na">N/A</option>
-                  </select>
-                  <span style={{ color: 'var(--ink-3)', fontSize: 12 }}>Evidências: {s.evidenceHintPt}</span>
-                </div>
-              </div>
-            );
-          })}
+          {open.safeguards.map((s: any) => (
+            <SafeguardAccordion
+              key={s.id}
+              safeguard={s}
+              item={items[s.id]}
+              assessmentId={assessmentId}
+              onSaved={() => reload(assessmentId)}
+            />
+          ))}
         </div>
       )}
     </>
