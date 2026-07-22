@@ -1,4 +1,5 @@
 import * as bcrypt from 'bcryptjs';
+import { ConflictException } from '@nestjs/common';
 import { LocalAccountsService } from './local-accounts.service';
 
 function authenticatorSecret(): string {
@@ -135,6 +136,13 @@ describe('LocalAccountsService', () => {
       data: { username: 'novo', name: null, role: 'AUDITOR', passwordHash: expect.any(String), mustChangePassword: true },
     });
     expect(result).toEqual(expect.objectContaining({ id: 'acc-2', username: 'novo', role: 'AUDITOR' }));
+  });
+
+  it('create relança violação de unicidade do Prisma (P2002) como ConflictException', async () => {
+    prisma.localAccount.create.mockRejectedValue({ code: 'P2002' });
+    await expect(
+      service.create({ username: 'admin', role: 'AUDITOR', password: 'senha1234' }),
+    ).rejects.toThrow(ConflictException);
   });
 
   it('login com mfaEnabled não abre sessão, pede verificação de TOTP', async () => {

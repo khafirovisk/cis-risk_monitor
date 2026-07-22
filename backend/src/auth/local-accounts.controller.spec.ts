@@ -18,6 +18,24 @@ describe('LocalAccountsController', () => {
     expect(svc.create).toHaveBeenCalledWith(body);
   });
 
+  it('create rejeita quando password está ausente, sem chamar o service', () => {
+    const svc: any = { create: jest.fn() };
+    const controller = new LocalAccountsController(svc);
+    const body: any = { username: 'novo', role: 'AUDITOR' };
+
+    expect(() => controller.create(body)).toThrow('Senha é obrigatória');
+    expect(svc.create).not.toHaveBeenCalled();
+  });
+
+  it('create rejeita quando role é inválido, sem chamar o service', () => {
+    const svc: any = { create: jest.fn() };
+    const controller = new LocalAccountsController(svc);
+    const body: any = { username: 'novo', role: 'SUPERUSER', password: 'senha1234' };
+
+    expect(() => controller.create(body)).toThrow('Papel inválido');
+    expect(svc.create).not.toHaveBeenCalled();
+  });
+
   it('resetMfa delega ao service com o id da rota e retorna ok', async () => {
     const svc: any = { resetMfa: jest.fn().mockResolvedValue(undefined) };
     const controller = new LocalAccountsController(svc);

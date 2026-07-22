@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { authenticator } from 'otplib';
 import * as qrcode from 'qrcode';
@@ -110,11 +110,11 @@ export class LocalAccountsService {
     if (!account) throw new Error('Conta local não encontrada');
 
     const valid = await bcrypt.compare(currentPassword, account.passwordHash);
-    if (!valid) throw new Error('Senha atual incorreta');
+    if (!valid) throw new BadRequestException('Senha atual incorreta');
 
     const policy = await this.security.getConfig();
     const policyError = validatePassword(newPassword, policy);
-    if (policyError) throw new Error(policyError);
+    if (policyError) throw new BadRequestException(policyError);
 
     const passwordHash = await bcrypt.hash(newPassword, HASH_ROUNDS);
     await this.prisma.localAccount.update({
@@ -136,18 +136,26 @@ export class LocalAccountsService {
   async create(input: CreateLocalAccountInput): Promise<LocalAccountSummary> {
     const policy = await this.security.getConfig();
     const policyError = validatePassword(input.password, policy);
-    if (policyError) throw new Error(policyError);
+    if (policyError) throw new BadRequestException(policyError);
 
     const passwordHash = await bcrypt.hash(input.password, HASH_ROUNDS);
-    const account = await this.prisma.localAccount.create({
-      data: {
-        username: input.username,
-        name: input.name || null,
-        role: input.role as any,
-        passwordHash,
-        mustChangePassword: true,
-      },
-    });
+    let account;
+    try {
+      account = await this.prisma.localAccount.create({
+        data: {
+          username: input.username,
+          name: input.name || null,
+          role: input.role as any,
+          passwordHash,
+          mustChangePassword: true,
+        },
+      });
+    } catch (error) {
+      if ((error as any)?.code === 'P2002') {
+        throw new ConflictException('Já existe um usuário com esse nome.');
+      }
+      throw error;
+    }
     return {
       id: account.id,
       username: account.username,
