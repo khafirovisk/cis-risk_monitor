@@ -5,11 +5,37 @@
 > Atualizado em 2026-07-22. Sidebar/Configurações, `install.sh`, README e todo
 > o backlog de `docs/DESIGN-PARITY-TODO.md` (CSS, toggle IG1/IG2/IG3, riscos
 > vinculados, sistema de toast, botão "Limpar tudo") foram **implementados e
-> verificados** (35/35 testes backend, tsc limpo, Playwright). Ainda não
-> commitado nem mesclado em `main` — ver `git status` neste worktree.
+> verificados** e depois **mesclados em `main`**.
 > Depois de rodar "Limpar tudo" durante a verificação, o banco de dev ficou
 > **totalmente limpo** (0 riscos, 0/130 avaliadas) — não é mais "2/130", esse
 > número antigo em qualquer nota anterior está desatualizado.
+>
+> **Novo, nesta mesma sessão:** plano de **contas locais multiusuário +
+> Configurações > Segurança + MFA TOTP**
+> (`docs/superpowers/specs/2026-07-22-local-accounts-security-mfa-design.md` +
+> `docs/superpowers/plans/2026-07-22-local-accounts-security-mfa.md`, 7 tasks,
+> via subagent-driven-development) — **implementado, revisado e verificado**
+> (81/81 testes backend, tsc limpo nos dois lados, Playwright cobrindo o
+> fluxo completo de MFA). Ainda **não mesclado em `main`** — ver `git status`/
+> `git log` neste worktree. Resumo do que mudou:
+> - `LocalAdminAccount` (singleton, sempre `id=1`) virou `LocalAccount`
+>   (multi-linha, papel por conta, criação pela tela de Usuários).
+> - Nova tabela/tela `SecuritySettings` / `/configuracoes/seguranca`: política
+>   de senha (tamanho mínimo + maiúscula/número/símbolo) e flag "MFA
+>   obrigatório" para contas locais.
+> - MFA TOTP completo para contas locais: enrollment com QR + 10 códigos de
+>   backup (mostrados uma única vez, hash bcrypt em repouso), segundo fator
+>   no login, reset de MFA pelo admin (recuperação se perder o dispositivo).
+> - Revisão final encontrou e corrigiu, ainda dentro desta mesma sessão: 2
+>   bugs críticos de segurança no MFA (reenrollment sem exigir prova do fator
+>   atual permitia sequestro silencioso de sessão para assumir o MFA de
+>   outra conta; condição de corrida permitia usar o mesmo código de backup
+>   duas vezes), mais 1 bug de UX (`MfaEnroll.tsx` travava num spinner
+>   infinito se o enrollment falhasse) e 1 gap de tratamento de erro (senha
+>   fraca/usuário duplicado ao criar conta local virava "Internal server
+>   error" em vez da mensagem real). Todos corrigidos e re-revisados.
+> - Ledger detalhado desta parte: mesma `.superpowers/sdd/progress.md`,
+>   segunda seção ("Contas locais multiusuário...").
 
 ## O que é este projeto
 
@@ -70,18 +96,14 @@ de riscos, com SSO SAML dinâmico + fallback de login local de emergência.
 
 Tudo isso está rodando via Docker Compose local: `postgres`, `api`, `web`.
 
-## Em andamento agora (implementado e verificado, falta só commitar)
+## Em andamento agora
 
-**Atualização:** as 4 mudanças abaixo (tokens.css, App.tsx, Configuracoes.tsx
-novo, AdminSaml.tsx) já foram feitas, `npx tsc` limpo (só o erro conhecido de
-`ImportMeta.env`), container `web` rebuildado e testado visualmente via
-Playwright — sidebar com seções/ícones/botão de engrenagem, hub
-`/configuracoes`, e os checkboxes do formulário SAML corrigidos, tudo
-conferido. **Falta apenas revisar e commitar** (`git status` vai mostrar
-`frontend/src/styles/tokens.css`, `frontend/src/App.tsx`,
-`frontend/src/pages/AdminSaml.tsx` modificados +
-`frontend/src/pages/Configuracoes.tsx` novo). Nenhum teste automatizado
-backend foi afetado (mudança é só frontend).
+O plano de **contas locais multiusuário + Segurança + MFA TOTP** (ver nota no
+topo deste arquivo) está **implementado, revisado (inclusive revisão final de
+branch inteira) e verificado — 81/81 testes backend, tsc limpo — mas ainda
+não mesclado em `main`**. Próximo passo natural: decidir com o usuário se
+mescla agora (mesmo fluxo já usado nos dois planos anteriores) ou mantém
+como está.
 
 **Cuidado ao rodar `docker compose` neste trabalho:** em algum momento desta
 sessão um comando rodou por engano a partir do checkout `main` (em vez deste
