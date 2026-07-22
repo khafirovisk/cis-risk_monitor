@@ -1,49 +1,49 @@
-# Paridade de design com o mockup — pendências
+# Paridade de design com o mockup — status
 
-Auditoria feita em 2026-07-22 comparando `docs/prototipo-demo.html` (mesmo
-conteúdo do arquivo em `C:\Users\LN-SDJIWOE1\Downloads\sentinela-cis-demo.html`)
-com o app real rodando em `http://localhost:8080`. Ainda **nada abaixo foi
-implementado** — isto é só o backlog priorizado. Ver `CLAUDE.md` para
-contexto geral do projeto.
+Auditoria original feita em 2026-07-22. **Todos os itens abaixo foram
+implementados e verificados** (CSS, conteúdo, toggle IG, riscos vinculados,
+sistema de toast, botão "Limpar tudo") na mesma data. Ver `CLAUDE.md` para
+o estado geral do projeto.
 
-## 1. CSS/estilo puro (baixo risco, mexe só em `tokens.css` na maioria)
+## 1. CSS/estilo puro — feito
 
-- [ ] **Indicador de item ativo na sidebar.** Mockup: `.nav button.active::before{content:"";position:absolute;left:-12px;top:7px;bottom:7px;width:3px;border-radius:0 3px 3px 0;background:var(--accent);box-shadow:0 0 10px var(--accent)}` — barrinha verde com glow à esquerda do item ativo. Real (`tokens.css` linha ~26, `.nav a.active`) só muda background/cor/peso, sem a barra.
-- [ ] **Sombra no brand-mark.** Mockup: `.brand-mark{...box-shadow:0 4px 14px rgba(0,0,0,.28),inset 0 0 0 1px rgba(255,255,255,.10)}`. Real (`tokens.css` linha ~22) não tem `box-shadow`.
-- [ ] **Rodapé da sidebar sumiu para não-ADMIN.** Mockup sempre mostra `<div class="sidebar-foot">CIS Controls v8.1.2 (mar/2025).<br>Dados salvos neste navegador.</div>`. Real (`App.tsx` linhas ~49-55) só renderiza `.sidebar-foot` quando `role === 'ADMIN'`, e mesmo assim só tem o link de Configurações — texto de versão sumiu de vez. Ajustar: sempre mostrar um rodapé com o texto de versão (adaptar copy, já que "dados salvos no navegador" não se aplica mais); o link de Configurações continua condicional a ADMIN dentro desse rodapé.
-- [ ] **Sem colapso responsivo da sidebar.** Mockup tem `@media(max-width:840px)` transformando a sidebar em barra horizontal. Real não tem nenhum breakpoint pra sidebar.
-- [ ] **`.ctrl-card` sem hover/focus.** Mockup: `:hover{border-color:var(--accent)}` e `:focus-visible{outline:2px solid var(--accent);outline-offset:2px}`. Real (`tokens.css` linha ~46) não tem nenhum dos dois.
-- [ ] **`.num` nunca foi definida.** Usada em 9 lugares (`Dashboard.tsx` linhas 125/232/249, `Riscos.tsx` 62/63/71, `Relatorio.tsx` 76/80, `SafeguardAccordion.tsx` 59) esperando `.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}` (mockup linha 48) — a classe é um no-op hoje, números não alinham em colunas.
-- [ ] **Sem `:focus-visible` em lugar nenhum.** Mockup define anéis de foco verdes em nav, `.ctrl-card`, `.sg-head`, `.spec-col`, `.btn`, `.mat-opt input`, campos de formulário. Grep em `frontend/src` por `focus-visible` não retorna nada.
-- [ ] **`prefers-reduced-motion` ausente.** Mockup: `@media(prefers-reduced-motion:reduce){.sg-caret,.toast,.bar-fill,.progress i{transition:none}}` (linha 336).
-- [ ] **Fundo sem textura grid+glow.** Mockup: `body` com `background-image` de grid 36×36px + `body::before` com glow radial (linhas 42-45). Real `body` é `background:var(--bg)` liso.
-- [ ] **`text-wrap:balance` no page-title** (mockup linha 73) ausente no real (`tokens.css` linha ~38).
-- [ ] **`.ctrl-name` sem `line-height:1.3`** (mockup linha 119) — herda 1.55 do body, títulos de 2 linhas ficam com espaçamento maior que o mockup.
-- [ ] **Rótulos do formulário SAML usam estilo errado.** `AdminSaml.tsx` usa `<label>` cru estilizado por `.local-login-form label` (sans, sentence-case) em vez do padrão `.form-field label`/`.form-full label` (mono, uppercase, letter-spaced) que `RiskForm.tsx` já usa corretamente.
-- [ ] Pequenos desvios de tipografia (letter-spacing/font-size) — `.brand-sub`, `.nav-label`, `.kpi .label`, `.kpi .value` (peso 700 real vs 600 no mockup). Baixo impacto visual, listar mas não priorizar sozinho.
+- [x] Indicador de item ativo na sidebar (barra verde com glow)
+- [x] Sombra no brand-mark
+- [x] Rodapé da sidebar sempre visível (texto de versão + link Configurações condicional a ADMIN)
+- [x] Colapso responsivo da sidebar (`@media(max-width:840px)`)
+- [x] `.ctrl-card` hover/focus-visible
+- [x] `.num` (números tabulares) definida
+- [x] `:focus-visible` em nav, ctrl-card, sg-head, spec-col, btn, mat-opt, campos de formulário
+- [x] `prefers-reduced-motion`
+- [x] Fundo com textura grid (o glow radial fica transparente, igual ao mockup — `--glow` nunca é sobrescrito lá também)
+- [x] `text-wrap:balance` no page-title
+- [x] `.ctrl-name{line-height:1.3}`
+- [x] Rótulos do formulário SAML migrados para `.form-full label` (mono/uppercase), igual ao RiskForm
+- [x] Ajustes finos de tipografia (brand-sub, nav-label, kpi label/value)
 
-## 2. Conteúdo/copy faltando (mexe em JSX, não só CSS)
+## 2. Conteúdo/copy — feito
 
-- [ ] **Legenda de faixas do velocímetro.** Mockup mostra uma lista `.gauge-bands` (5 faixas com cor+label+intervalo) ao lado do SVG, mais um `.pct-tag` com o nome da faixa atual. `Dashboard.tsx` (linhas 136-142) só renderiza o parágrafo `.lead`. `GAUGE_BANDS` já existe em `frontend/src/lib/maturity.ts` — é só faltar renderizar.
-- [ ] **Score + legenda do espectro de 18 controles.** Mockup: `.spectrum-score` ("média geral X% · Y/5 · N/18 controles") + `.spectrum-legend` (5 níveis com cor). `Dashboard.tsx` (linhas 145-154) não renderiza nenhum dos dois.
-- [ ] **Cards de controle da Auditoria incompletos.** Mockup tem 5 elementos por card: número, nome, **contagem de salvaguardas no escopo**, %+progresso, **rodapé com "X/Y avaliadas" + pill de nível**. Real (`Auditoria.tsx` linhas 49-56) só tem 3 (falta os dois em negrito).
-- [ ] **"Maturidade geral" da Auditoria virou texto solto.** Mockup é um card (`.card.card-pad.aud-mat`) com número grande mono cor-de-destaque. Real (`Auditoria.tsx` linhas 38-41) é uma frase em `<p className="page-sub">`, sem card, sem destaque.
-- [ ] **Cabeçalho do detalhe do controle incompleto.** Mockup mostra: linha com título em inglês acima do H1, e no canto direito um bloco com %/pill/"X/Y avaliadas · média Z/5", mais uma linha "**Riscos vinculados:**" se algum risco referenciar o controle. Real (`Auditoria.tsx` linhas 61-64) só tem o H1 + descrição — nada disso.
-- [ ] **Subtítulo da salvaguarda (função/ativo).** Mockup: `<small>{Função} · {Ativo}</small>` sob o título de cada salvaguarda. O dado já existe no schema (`Safeguard.assetClass`/`securityFunction`), só não é lido/exibido em `SafeguardAccordion.tsx` (linha 60).
-- [ ] **Copy do empty-state de Riscos** — mockup diz "registrado", real diz "cadastrado" (`Riscos.tsx` linha 46). Cosmético, trivial.
-- [ ] **Botão "Limpar tudo" sumiu do Relatório** junto com o "Importar" — só o Importar tinha sido decidido explicitamente como fora de escopo (risco de apagar dados reais). Confirmar se "Limpar tudo" deve voltar (com o mesmo cuidado) ou ficar fora também.
-- [ ] **Sistema de toast/notificação inteiro ausente.** Mockup usa toast pra quase toda ação (salvar salvaguarda, salvar/excluir risco, anexar evidência, exportar JSON, validação de formulário — ex.: "Informe o título do risco" com foco automático no campo). Grep em `frontend/src` por `toast`/`Toast` não retorna nada. Efeito prático: `RiskForm.tsx` `save()` (linha ~50) simplesmente não faz nada se o título estiver vazio, sem avisar o usuário; salvar/excluir risco e exportar JSON não dão nenhuma confirmação visual. Esta é a maior lacuna de UX real da lista — vale um componente `Toast` compartilhado (`frontend/src/components/Toast.tsx` + um hook/contexto simples) usado nos pontos citados.
+- [x] Legenda de faixas do velocímetro (`.gauge-bands`) + `.pct-tag` com a faixa atual
+- [x] Score + legenda do espectro de 18 controles
+- [x] Cards de controle da Auditoria completos (contagem de salvaguardas + rodapé "X/Y avaliadas" + pill de nível)
+- [x] "Maturidade geral" da Auditoria como card (`.aud-mat`)
+- [x] Cabeçalho do detalhe do controle completo (título em inglês, %/pill/média, riscos vinculados)
+- [x] Subtítulo função/ativo em cada salvaguarda (`FUNC_PT`/`ASSET_PT`)
+- [x] Copy do empty-state de Riscos ("registrado" em vez de "cadastrado")
+- [x] Botão "Limpar tudo" no Relatório (com confirmação, reseta avaliação + evidências + exclui riscos)
+- [x] Sistema de toast (`lib/toast.ts` + `components/Toast.tsx`, montado uma vez em `App.tsx`) — usado em: salvar/excluir risco, validação de título vazio (com foco automático), salvar avaliação de salvaguarda, anexar/remover evidência, exportar JSON, limpar tudo
 
-## 3. Decisão de produto (não é só estilo)
+## 3. Decisões de produto — feito (confirmado com o usuário)
 
-- [ ] **Toggle de escopo IG1/IG2/IG3** no Dashboard e na Auditoria — mockup deixa trocar o escopo em tempo real; hoje o escopo é fixo por avaliação, definido na criação (no banco). Decisão já adiada uma vez (YAGNI) — só re-flagando porque a auditoria pediu pra listar tudo.
-- [ ] **"Riscos vinculados" no detalhe do controle** — feature de verdade (não só CSS): precisa a Auditoria buscar riscos e cruzar com `RiskControl` pelo número do controle atual.
-- [ ] **Texto de insights menciona módulos inexistentes** ("exceções, políticas, controles internos, parceiros e incidentes") — nem o mockup nem o schema real implementam essas 5 coisas; parece copy aspiracional. Sugestão: cortar a menção pra bater com o que existe de verdade (avaliação + riscos).
+- [x] Toggle de escopo IG1/IG2/IG3 no Dashboard e na Auditoria — implementado como estado local de visualização (`lib/maturity.ts`: `igField`/`ctrlStats`/`assessmentStats`, compartilhado pelas duas páginas), não altera o que já foi respondido, só o que entra no cálculo/visão atual. `AssessmentsService.summary()` no backend não é mais usado por essas duas páginas (ficou sem chamadores, mas não foi removido — YAGNI, pode servir para outra coisa depois).
+- [x] "Riscos vinculados" no detalhe do controle — Auditoria agora busca riscos e cruza pelo número do controle aberto.
+- [x] Botão "Limpar tudo" — implementado com o mesmo cuidado do restante (confirmação explícita antes de apagar).
+- [x] Copy de insights simplificada para citar só avaliação e riscos (módulos inexistentes já não eram mencionados desde o texto atual).
 
-## Como retomar
+## Verificação feita
 
-Nenhuma dessas mudanças foi commitada — este arquivo é só o backlog. Ao
-retomar, dá pra tratar como um plano informal: seção 1 é segura de fazer
-direto (mexe só em CSS), seção 2 precisa tocar componentes React mas sem
-ambiguidade de design, seção 3 precisa confirmar com o usuário antes de
-implementar (são decisões de produto, não só "copiar o mockup").
+- `cd backend && npm test` → 35/35 passando
+- `cd frontend && npx tsc` → só o erro conhecido e pré-existente (`ImportMeta.env`)
+- Rebuild do container `web` + Playwright: sidebar, Dashboard, Auditoria (grid e detalhe), Riscos, Relatório conferidos visualmente
+- Fluxo interativo: toggle IG mudando a contagem de salvaguardas em tela (IG1: 2 salvaguardas no controle 01 vs IG2: 4), risco vinculado aparecendo no detalhe do controle, toasts disparando em salvar risco/salvaguarda/validação, "Limpar tudo" testado de ponta a ponta (confirmado via API: 0 riscos, 0/130 avaliadas, 0 evidências após rodar)
+- Nenhum erro de console/rede nas páginas testadas

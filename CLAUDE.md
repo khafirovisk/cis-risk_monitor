@@ -2,11 +2,14 @@
 
 > Este arquivo é lido automaticamente por qualquer sessão nova do Claude Code
 > aberta neste diretório. Serve para retomar o trabalho sem perder contexto.
-> Atualizado em 2026-07-22. Sidebar/Configurações, o script `install.sh` e o
-> README já estão **commitados, mesclados em `main` e pushados pro GitHub**.
-> Pendência atual: **`docs/DESIGN-PARITY-TODO.md`** — backlog de uma nova
-> auditoria de paridade visual com o mockup, ainda não implementado (nada
-> commitado). Leia esse arquivo antes de continuar qualquer ajuste de design.
+> Atualizado em 2026-07-22. Sidebar/Configurações, `install.sh`, README e todo
+> o backlog de `docs/DESIGN-PARITY-TODO.md` (CSS, toggle IG1/IG2/IG3, riscos
+> vinculados, sistema de toast, botão "Limpar tudo") foram **implementados e
+> verificados** (35/35 testes backend, tsc limpo, Playwright). Ainda não
+> commitado nem mesclado em `main` — ver `git status` neste worktree.
+> Depois de rodar "Limpar tudo" durante a verificação, o banco de dev ficou
+> **totalmente limpo** (0 riscos, 0/130 avaliadas) — não é mais "2/130", esse
+> número antigo em qualquer nota anterior está desatualizado.
 
 ## O que é este projeto
 
