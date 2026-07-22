@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 
 export function AdminSaml() {
@@ -21,15 +22,16 @@ export function AdminSaml() {
 
   return (
     <>
+      <Link to="/configuracoes" className="back-btn">← Voltar a Configurações</Link>
       <h1 className="page-title">Configuração do SSO (SAML)</h1>
       <p className="page-sub">Alterações aqui têm efeito imediato, sem precisar reiniciar a aplicação.</p>
       <form onSubmit={save} className="card local-login-form" style={{ maxWidth: 640 }}>
-        <label>
+        <label className="checkbox-row">
           <input
             type="checkbox"
             checked={config.enabled}
             onChange={(e) => setConfig({ ...config, enabled: e.target.checked })}
-          />{' '}
+          />
           Habilitado
         </label>
         <label>
@@ -48,12 +50,12 @@ export function AdminSaml() {
           Certificado do IdP (X.509)
           <textarea rows={6} value={config.idpCert || ''} onChange={(e) => setConfig({ ...config, idpCert: e.target.value })} />
         </label>
-        <label>
+        <label className="checkbox-row">
           <input
             type="checkbox"
             checked={config.wantAssertionsSigned}
             onChange={(e) => setConfig({ ...config, wantAssertionsSigned: e.target.checked })}
-          />{' '}
+          />
           Exigir asserções assinadas
         </label>
         <button className="btn" type="submit">Salvar</button>
