@@ -42,6 +42,18 @@ export function MfaEnroll() {
     );
   }
 
+  if (error && !enrollment) {
+    return (
+      <div className="login-page">
+        <div className="card login-card">
+          <h1 className="page-title">Configurar MFA</h1>
+          <p className="error">{error}</p>
+          <button className="btn ghost" onClick={() => navigate('/login')}>Voltar ao login</button>
+        </div>
+      </div>
+    );
+  }
+
   if (!enrollment) return <p className="page-sub">Carregando…</p>;
 
   return (
