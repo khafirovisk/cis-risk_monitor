@@ -33,9 +33,15 @@ export class AuthController {
       return res.redirect('/login?error=saml_indisponivel');
     }
 
-    const saml = this.buildSaml(config);
-    const url = await saml.getAuthorizeUrlAsync('', undefined, {});
-    return res.redirect(url);
+    try {
+      const saml = this.buildSaml(config);
+      const url = await saml.getAuthorizeUrlAsync('', undefined, {});
+      return res.redirect(url);
+    } catch {
+      // Configuração de SAML inválida (ex.: certificado malformado) — não deixa
+      // vazar um 500 cru, manda pra tela de login com uma mensagem tratável.
+      return res.redirect('/login?error=saml_falha');
+    }
   }
 
   // ACS: IdP faz POST aqui após autenticar
@@ -46,9 +52,9 @@ export class AuthController {
       return res.redirect('/login?error=saml_indisponivel');
     }
 
-    const saml = this.buildSaml(config);
     let user: { id: string; email: string; name: string | null; role: string };
     try {
+      const saml = this.buildSaml(config);
       const { profile } = await saml.validatePostResponseAsync(req.body as Record<string, string>);
       user = await this.upsertSamlUser(profile);
     } catch {
@@ -177,7 +183,7 @@ export class AuthController {
       entryPoint: config.entryPoint!,
       issuer: config.issuer,
       callbackUrl: config.callbackUrl || undefined,
-      idpCert: config.idpCert!,
+      cert: config.idpCert!,
       wantAssertionsSigned: config.wantAssertionsSigned,
       identifierFormat: 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress',
     } as any);

@@ -44,6 +44,22 @@ describe('AuthController', () => {
     expect(res.redirect).toHaveBeenCalledWith('https://idp.example.com/sso?SAMLRequest=xyz');
   });
 
+  it('login redireciona para /login?error=saml_falha quando a configuração de SAML é inválida (SAML lança exceção)', async () => {
+    samlConfig.getConfig.mockResolvedValue({
+      enabled: true, entryPoint: 'https://idp.example.com/sso', issuer: 'sentinela-cis',
+      callbackUrl: 'https://app/api/auth/saml/callback', idpCert: 'CERT', wantAssertionsSigned: true,
+    });
+    const res = makeRes();
+    const { SAML } = require('@node-saml/node-saml');
+    SAML.mockImplementationOnce(() => {
+      throw new TypeError('cert is required');
+    });
+
+    await controller.login(res as any);
+
+    expect(res.redirect).toHaveBeenCalledWith('/login?error=saml_falha');
+  });
+
   it('callback faz upsert do usuário com o role vindo do claim', async () => {
     samlConfig.getConfig.mockResolvedValue({
       enabled: true, entryPoint: 'https://idp.example.com/sso', issuer: 'sentinela-cis',
@@ -121,6 +137,24 @@ describe('AuthController', () => {
       controller.changePassword({ currentPassword: 'admin', newPassword: 'nova12345' }, req),
     ).rejects.toBeInstanceOf(UnauthorizedException);
     expect(localAccounts.changePassword).not.toHaveBeenCalled();
+  });
+
+  it('callback redireciona para /login?error=saml_falha quando a configuração de SAML é inválida (SAML lança exceção)', async () => {
+    samlConfig.getConfig.mockResolvedValue({
+      enabled: true, entryPoint: 'https://idp.example.com/sso', issuer: 'sentinela-cis',
+      callbackUrl: 'https://app/api/auth/saml/callback', idpCert: 'CERT', wantAssertionsSigned: true,
+    });
+    const res = makeRes();
+    const req: any = { body: {}, login: jest.fn() };
+    const { SAML } = require('@node-saml/node-saml');
+    SAML.mockImplementationOnce(() => {
+      throw new TypeError('cert is required');
+    });
+
+    await controller.callback(req, res as any);
+
+    expect(res.redirect).toHaveBeenCalledWith('/login?error=saml_falha');
+    expect(req.login).not.toHaveBeenCalled();
   });
 
   it('callback redireciona para /login?error=saml_falha quando validatePostResponseAsync rejeita', async () => {
