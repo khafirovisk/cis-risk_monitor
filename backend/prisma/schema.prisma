@@ -172,12 +172,29 @@ model SamlConfig {
   updatedAt            DateTime @updatedAt
 }
 
-model LocalAdminAccount {
-  id                 Int       @id @default(1)
-  username           String    @unique @default("admin")
+model LocalAccount {
+  id                 String    @id @default(cuid())
+  username           String    @unique
+  name               String?
+  role               Role      @default(AUDITOR)
   passwordHash       String
   mustChangePassword Boolean   @default(true)
   failedAttempts     Int       @default(0)
   lockedUntil        DateTime?
+  mfaEnabled         Boolean   @default(false)
+  mfaSecret          String?
+  mfaBackupCodes     String[]  @default([])
+  createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
+}
+
+model SecuritySettings {
+  id                       Int      @id @default(1)
+  passwordMinLength        Int      @default(8)
+  passwordRequireUppercase Boolean  @default(false)
+  passwordRequireNumber    Boolean  @default(false)
+  passwordRequireSymbol    Boolean  @default(false)
+  mfaRequired              Boolean  @default(false)
+  updatedBy                String?
+  updatedAt                DateTime @updatedAt
 }

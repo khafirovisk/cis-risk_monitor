@@ -176,7 +176,7 @@ rebuildar o container `web` (`docker compose build web && docker compose up
   lugar** — não deixe isso se perder de novo. Para resetar na unha, veja o
   script SQL usado (arquivo temporário, já apagado, mas o padrão foi: gerar
   hash com `docker exec saml-local-auth-api-1 node -e "console.log(require('bcryptjs').hashSync('admin', 12))"`,
-  escrever um `.sql` com `UPDATE "LocalAdminAccount" SET "passwordHash"='<hash>', "mustChangePassword"=true, "failedAttempts"=0, "lockedUntil"=NULL WHERE id=1;`,
+  escrever um `.sql` com `UPDATE "LocalAccount" SET "passwordHash"='<hash>', "mustChangePassword"=true, "failedAttempts"=0, "lockedUntil"=NULL WHERE username='admin';`,
   copiar para o container do postgres com `docker cp` e rodar com
   `psql -f` — **nunca interpole o hash bcrypt (`$2a$12$...`) direto numa
   string de shell entre aspas duplas**, o `$2a`/`$12` são interpretados como
