@@ -14,8 +14,10 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$REPO_ROOT/.env"
 NGINX_TEMPLATE="$REPO_ROOT/infra/nginx/nginx.conf"
+NGINX_SELFSIGNED_TEMPLATE="$REPO_ROOT/infra/nginx/nginx-selfsigned.conf"
 NGINX_SITE="/etc/nginx/sites-available/sentinela-cis"
 DEPLOY_DOMAIN=""
+TLS_METHOD=""   # "letsencrypt" | "selfsigned" | "" (sem TLS)
 
 # ---------- helpers ----------
 c_reset='\033[0m'; c_bold='\033[1m'; c_green='\033[32m'; c_yellow='\033[33m'; c_red='\033[31m'
@@ -167,8 +169,29 @@ setup_nginx_tls() {
     return
   fi
 
-  info "Instalando Nginx + Certbot..."
+  info "Instalando Nginx..."
   apt-get install -y -qq nginx >/dev/null
+
+  echo
+  echo "Certificado TLS para $domain:"
+  echo "  1) Let's Encrypt (Certbot) — precisa de DNS público já apontando pro servidor [padrão]"
+  echo "  2) Autoassinado — funciona sem DNS público; o navegador vai mostrar aviso de"
+  echo "     \"conexão não segura\" até você trocar por um certificado real depois"
+  local tls_choice
+  tls_choice=$(ask "Escolha (1 ou 2)" "1")
+
+  if [ "$tls_choice" = "2" ]; then
+    setup_nginx_selfsigned "$domain"
+  else
+    setup_nginx_letsencrypt "$domain"
+  fi
+}
+
+setup_nginx_letsencrypt() {
+  local domain="$1"
+  TLS_METHOD="letsencrypt"
+
+  info "Instalando Certbot..."
   apt-get install -y -qq certbot python3-certbot-nginx >/dev/null
 
   info "Configurando site Nginx para $domain..."
@@ -188,6 +211,32 @@ setup_nginx_tls() {
   fi
 }
 
+setup_nginx_selfsigned() {
+  local domain="$1"
+  TLS_METHOD="selfsigned"
+  local cert_dir="/etc/nginx/ssl/$domain"
+
+  info "Gerando certificado autoassinado para $domain (validade: 10 anos)..."
+  mkdir -p "$cert_dir"
+  chmod 700 "$cert_dir"
+  openssl req -x509 -nodes -newkey rsa:2048 -days 3650 \
+    -keyout "$cert_dir/privkey.pem" \
+    -out "$cert_dir/fullchain.pem" \
+    -subj "/CN=$domain" \
+    -addext "subjectAltName=DNS:$domain" >/dev/null 2>&1
+  chmod 600 "$cert_dir/privkey.pem"
+
+  info "Configurando site Nginx (TLS autoassinado) para $domain..."
+  sed "s/grc\.suaempresa\.com\.br/$domain/g" "$NGINX_SELFSIGNED_TEMPLATE" > "$NGINX_SITE"
+  ln -sf "$NGINX_SITE" "/etc/nginx/sites-enabled/sentinela-cis"
+  nginx -t
+  systemctl reload nginx
+
+  warn "Certificado autoassinado — navegadores vão mostrar aviso de \"conexão não segura\"."
+  echo "   Quando tiver um DNS público apontando pra este servidor, rode"
+  echo "   'sudo ./install.sh' de novo e escolha a opção 1 (Let's Encrypt) para trocar."
+}
+
 # ---------- 5. status final ----------
 print_status() {
   echo
@@ -205,6 +254,9 @@ print_status() {
   echo
   if [ -n "${DEPLOY_DOMAIN:-}" ]; then
     printf "Acesse: ${c_bold}https://%s${c_reset}\n" "$DEPLOY_DOMAIN"
+    if [ "${TLS_METHOD:-}" = "selfsigned" ]; then
+      warn "Certificado autoassinado em uso — navegador vai avisar \"conexão não segura\" até trocar por um certificado real (veja instruções acima)."
+    fi
   else
     printf "Acesse: ${c_bold}http://<ip-do-servidor>:8080${c_reset}\n"
   fi
