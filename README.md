@@ -39,6 +39,29 @@ sudo ./install.sh
 
 Detalhes e o passo a passo manual em [`docs/DEPLOY-UBUNTU.md`](docs/DEPLOY-UBUNTU.md).
 
+## Atualizando para uma nova versão
+
+Depois que uma atualização for enviada para o repositório (`git push`), atualize
+o servidor de produção rodando, na pasta onde o app foi instalado:
+
+```bash
+cd sentinela-cis          # pasta onde o install.sh clonou o repositório
+git pull
+docker compose up -d --build       # reconstrói e reinicia api/web com o código novo
+docker compose exec api npx prisma migrate deploy   # aplica migrations pendentes, se houver
+```
+
+- Isso não apaga dados do banco — só reconstrói as imagens da aplicação e aplica
+  migrations novas (se o release trouxer alguma mudança de schema).
+- Sessões ativas dos usuários **não são derrubadas** automaticamente. Se a
+  atualização mudar algo no frontend, o navegador de quem já estava logado só
+  vai carregar os arquivos novos ao recarregar a página (F5) — não existe hoje
+  um mecanismo de auto-atualização/aviso dentro do app; se isso virar um
+  problema recorrente, vale revisitar.
+- Para conferir se subiu a versão certa depois do `git pull`: `git log -1
+  --oneline` deve mostrar o commit esperado, e `docker compose ps` deve
+  mostrar os 3 containers (`postgres`, `api`, `web`) com status `Up`/healthy.
+
 ## Rodando localmente (Docker)
 
 ```bash
