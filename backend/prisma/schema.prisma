@@ -198,3 +198,13 @@ model SecuritySettings {
   updatedBy                String?
   updatedAt                DateTime @updatedAt
 }
+
+model BrandingSettings {
+  id             Int      @id @default(1)
+  accentColor    String?
+  logoStorageKey String?
+  logoFilename   String?
+  logoMime       String?
+  updatedBy      String?
+  updatedAt      DateTime @updatedAt
+}

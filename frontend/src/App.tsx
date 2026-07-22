@@ -11,9 +11,11 @@ import { AdminSaml } from './pages/AdminSaml';
 import { Configuracoes } from './pages/Configuracoes';
 import { Usuarios } from './pages/Usuarios';
 import { Seguranca } from './pages/Seguranca';
+import { Branding } from './pages/Branding';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Toast } from './components/Toast';
 import { api } from './api/client';
+import { useBranding } from './lib/useBranding';
 
 // Layout com a sidebar do app — só é montado quando se entra numa rota
 // autenticada (ver <Route element={<AppLayout />}> abaixo). Isso mantém
@@ -22,6 +24,7 @@ import { api } from './api/client';
 // área logada (em vez de ficar preso ao valor buscado antes do login).
 function AppLayout() {
   const [role, setRole] = useState<string | null>(null);
+  const { logoUrl } = useBranding();
 
   useEffect(() => {
     api
@@ -34,13 +37,17 @@ function AppLayout() {
     <div className="app">
       <nav className="sidebar">
         <div className="brand">
-          <div className="brand-mark">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" opacity=".5" />
-              <circle cx="12" cy="12" r="4.6" stroke="currentColor" strokeWidth="1.6" />
-              <circle cx="12" cy="12" r="1.5" fill="currentColor" />
-            </svg>
-          </div>
+          {logoUrl ? (
+            <img src={logoUrl} alt="Logo" className="brand-logo-img" />
+          ) : (
+            <div className="brand-mark">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" opacity=".5" />
+                <circle cx="12" cy="12" r="4.6" stroke="currentColor" strokeWidth="1.6" />
+                <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+              </svg>
+            </div>
+          )}
           <div>
             <div className="brand-name">Sentinela CIS</div>
             <div className="brand-sub">Controls v8.1.2</div>
@@ -87,6 +94,7 @@ export default function App() {
           <Route path="/configuracoes" element={<ProtectedRoute><Configuracoes /></ProtectedRoute>} />
           <Route path="/configuracoes/usuarios" element={<ProtectedRoute><Usuarios /></ProtectedRoute>} />
           <Route path="/configuracoes/seguranca" element={<ProtectedRoute><Seguranca /></ProtectedRoute>} />
+          <Route path="/configuracoes/branding" element={<ProtectedRoute><Branding /></ProtectedRoute>} />
           <Route path="/admin/saml" element={<ProtectedRoute><AdminSaml /></ProtectedRoute>} />
         </Route>
       </Routes>

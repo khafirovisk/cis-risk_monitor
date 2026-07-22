@@ -62,4 +62,23 @@ export const api = {
   mfaEnroll: () => req<any>('/auth/local/mfa/enroll', { method: 'POST' }),
   mfaEnrollVerify: (token: string) => req<any>('/auth/local/mfa/enroll/verify', { method: 'POST', body: JSON.stringify({ token }) }),
   resetMfa: (id: string) => req<any>(`/local-accounts/${id}/reset-mfa`, { method: 'POST' }),
+  getBranding: () => req<any>('/branding'),
+  updateBranding: (b: any) => req<any>('/branding', { method: 'PUT', body: JSON.stringify(b) }),
+  brandingLogoUrl: BASE + '/branding/logo',
+  uploadBrandingLogo: (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return fetch(`${BASE}/branding/logo`, {
+      method: 'POST',
+      credentials: 'include',
+      body: form,
+    }).then(async (res) => {
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw Object.assign(new Error(`API ${res.status}`), { status: res.status, body });
+      }
+      return res.json();
+    });
+  },
+  removeBrandingLogo: () => req<any>('/branding/logo', { method: 'DELETE' }),
 };
