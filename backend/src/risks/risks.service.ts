@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AiClassifierService } from '../ai/ai-classifier.service';
 
 type TaskIn = { description: string; assignee?: string; dueDate?: string; done?: boolean };
 type RiskIn = {
@@ -12,7 +13,10 @@ type RiskIn = {
 
 @Injectable()
 export class RisksService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private aiClassifier: AiClassifierService,
+  ) {}
 
   list() {
     return this.prisma.risk.findMany({
@@ -27,9 +31,13 @@ export class RisksService {
     return ctrls.map((c) => c.id);
   }
 
+  // Cria o risco sem checkbox manual de controles: a IA decide quais controles
+  // CIS estão associados. Se ela falhar ou não estiver configurada, o risco é
+  // criado do mesmo jeito, sem controles, e o motivo vai em `aiWarning`.
   async create(data: RiskIn) {
-    const controlIds = await this.controlIdsFromNumbers(data.controlNumbers);
-    return this.prisma.risk.create({
+    const classification = await this.aiClassifier.classifyControls(data.title, data.description);
+    const controlIds = await this.controlIdsFromNumbers(classification.controlNumbers);
+    const risk = await this.prisma.risk.create({
       data: {
         title: data.title, description: data.description,
         probInherent: data.probInherent ?? 3, impactInherent: data.impactInherent ?? 3,
@@ -45,14 +53,32 @@ export class RisksService {
       },
       include: { tasks: true, controls: true },
     });
+    return { ...risk, aiWarning: classification.error };
   }
 
+  // Edição continua com o checkbox manual (controlNumbers vindo do body é
+  // respeitado). MAS se título ou descrição mudaram, a IA roda de novo e
+  // substitui os controles pela nova classificação (mesmo que por cima de uma
+  // correção manual feita na mesma edição) — o risco em si mudou o bastante
+  // pra justificar reclassificar.
   async update(id: string, data: RiskIn) {
-    const controlIds = await this.controlIdsFromNumbers(data.controlNumbers);
+    const existing = await this.prisma.risk.findUniqueOrThrow({ where: { id } });
+    const contentChanged =
+      existing.title !== data.title || (existing.description ?? '') !== (data.description ?? '');
+
+    let controlNumbers = data.controlNumbers ?? [];
+    let aiWarning: string | null = null;
+    if (contentChanged) {
+      const classification = await this.aiClassifier.classifyControls(data.title, data.description);
+      controlNumbers = classification.controlNumbers;
+      aiWarning = classification.error;
+    }
+
+    const controlIds = await this.controlIdsFromNumbers(controlNumbers);
     // substitui vínculos e tarefas (simples e previsível para a demo/PoC)
     await this.prisma.riskControl.deleteMany({ where: { riskId: id } });
     await this.prisma.task.deleteMany({ where: { riskId: id } });
-    return this.prisma.risk.update({
+    const risk = await this.prisma.risk.update({
       where: { id },
       data: {
         title: data.title, description: data.description,
@@ -69,6 +95,7 @@ export class RisksService {
       },
       include: { tasks: true, controls: true },
     });
+    return { ...risk, aiWarning };
   }
 
   remove(id: string) {

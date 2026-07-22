@@ -208,3 +208,13 @@ model BrandingSettings {
   updatedBy      String?
   updatedAt      DateTime @updatedAt
 }
+
+model AiSettings {
+  id        Int      @id @default(1)
+  enabled   Boolean  @default(false)
+  baseUrl   String?
+  apiKey    String?
+  model     String?
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}
