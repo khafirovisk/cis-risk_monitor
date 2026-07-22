@@ -8,6 +8,7 @@ import { Login } from './pages/Login';
 import { ChangePassword } from './pages/ChangePassword';
 import { AdminSaml } from './pages/AdminSaml';
 import { Configuracoes } from './pages/Configuracoes';
+import { Usuarios } from './pages/Usuarios';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Toast } from './components/Toast';
 import { api } from './api/client';
@@ -66,6 +67,7 @@ export default function App() {
           <Route path="/riscos" element={<ProtectedRoute><Riscos /></ProtectedRoute>} />
           <Route path="/relatorio" element={<ProtectedRoute><Relatorio /></ProtectedRoute>} />
           <Route path="/configuracoes" element={<ProtectedRoute><Configuracoes /></ProtectedRoute>} />
+          <Route path="/configuracoes/usuarios" element={<ProtectedRoute><Usuarios /></ProtectedRoute>} />
           <Route path="/admin/saml" element={<ProtectedRoute><AdminSaml /></ProtectedRoute>} />
         </Routes>
       </main>

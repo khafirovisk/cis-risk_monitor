@@ -53,4 +53,5 @@ export const api = {
   createRisk: (b: any) => req<any>('/risks', { method: 'POST', body: JSON.stringify(b) }),
   updateRisk: (id: string, b: any) => req<any>(`/risks/${id}`, { method: 'PUT', body: JSON.stringify(b) }),
   deleteRisk: (id: string) => req<void>(`/risks/${id}`, { method: 'DELETE' }),
+  users: () => req<any[]>('/users'),
 };
