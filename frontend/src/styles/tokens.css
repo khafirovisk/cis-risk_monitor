@@ -26,6 +26,8 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;bac
 .nav{display:flex;flex-direction:column}
 .brand{display:flex;align-items:center;gap:11px;padding:2px 8px 15px;border-bottom:1px solid var(--border);margin-bottom:6px}
 .brand-mark{width:34px;height:34px;border-radius:9px;background:var(--brand-green);color:var(--brand-yellow);display:grid;place-items:center;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.28),inset 0 0 0 1px rgba(255,255,255,.10)}
+.brand-logo-img{max-width:120px;max-height:36px;object-fit:contain}
+.login-logo-img{display:block;max-width:220px;max-height:64px;object-fit:contain;margin:0 auto 14px}
 .brand-name{font-weight:700;font-size:15px}
 .brand-sub{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3)}
 .nav a{position:relative;display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:9px;color:var(--ink-2);text-decoration:none;font-size:13px;font-family:var(--font-mono)}

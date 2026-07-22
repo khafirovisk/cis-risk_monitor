@@ -21,6 +21,11 @@ export function Configuracoes() {
           <span className="ctrl-name">Segurança</span>
           <span className="td-muted">Política de senha e exigência de MFA para contas locais.</span>
         </Link>
+        <Link to="/configuracoes/branding" className="card ctrl-card" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <span className="ctrl-num">MARCA</span>
+          <span className="ctrl-name">Branding</span>
+          <span className="td-muted">Logo e cor de destaque exibidas na barra lateral e na tela de login.</span>
+        </Link>
       </div>
     </>
   );

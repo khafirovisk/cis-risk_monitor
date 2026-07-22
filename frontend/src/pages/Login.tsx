@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, SAML_LOGIN_URL } from '../api/client';
+import { useBranding } from '../lib/useBranding';
 
 export function Login() {
   const [showLocal, setShowLocal] = useState(false);
@@ -10,6 +11,7 @@ export function Login() {
   const [mfaToken, setMfaToken] = useState('');
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { logoUrl } = useBranding();
 
   async function submitLocal(e: FormEvent) {
     e.preventDefault();
@@ -39,6 +41,7 @@ export function Login() {
   return (
     <div className="login-page">
       <div className="card login-card">
+        {logoUrl && <img src={logoUrl} alt="Logo" className="login-logo-img" />}
         <h1 className="page-title">Sentinela CIS</h1>
         {!mfaStep && <a className="btn" href={SAML_LOGIN_URL}>Entrar com SSO corporativo</a>}
 
