@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
   Post,
   Req,
   Res,
@@ -17,6 +18,8 @@ import { LocalAccountsService } from './local-accounts.service';
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private prisma: PrismaService,
     private samlConfig: SamlConfigService,
@@ -37,9 +40,11 @@ export class AuthController {
       const saml = this.buildSaml(config);
       const url = await saml.getAuthorizeUrlAsync('', undefined, {});
       return res.redirect(url);
-    } catch {
+    } catch (err) {
       // Configuração de SAML inválida (ex.: certificado malformado) — não deixa
       // vazar um 500 cru, manda pra tela de login com uma mensagem tratável.
+      // O erro real fica logado (docker compose logs api) pra diagnóstico.
+      this.logger.error(`Falha ao montar/iniciar o SSO SAML: ${(err as Error).message}`, (err as Error).stack);
       return res.redirect('/login?error=saml_falha');
     }
   }
@@ -57,7 +62,8 @@ export class AuthController {
       const saml = this.buildSaml(config);
       const { profile } = await saml.validatePostResponseAsync(req.body as Record<string, string>);
       user = await this.upsertSamlUser(profile);
-    } catch {
+    } catch (err) {
+      this.logger.error(`Falha ao validar a resposta SAML do IdP: ${(err as Error).message}`, (err as Error).stack);
       return res.redirect('/login?error=saml_falha');
     }
 
