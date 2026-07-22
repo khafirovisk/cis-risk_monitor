@@ -8,13 +8,20 @@ cd sentinela-cis
 sudo ./install.sh
 ```
 
-O script cuida de tudo: instala pré-requisitos (Docker, Nginx, Certbot),
-mostra uma tela de configuração (domínio, senhas, segredos — pulada se já
-existir um `.env`), sobe a stack, roda `migrate deploy` + `seed`, e —
-se você informar um domínio — configura Nginx e emite o certificado TLS
-automaticamente. Ao final, imprime o status do deploy e os próximos passos.
+O script cuida de tudo: instala pré-requisitos (Docker, Nginx), mostra uma
+tela de configuração (domínio, senhas, segredos — pulada se já existir um
+`.env`), sobe a stack, roda `migrate deploy` + `seed`, e — se você informar
+um domínio — configura Nginx e o TLS. Nesse ponto o script pergunta qual
+certificado usar: **Let's Encrypt** via Certbot (padrão, precisa de DNS
+público já apontando para o servidor) ou **autoassinado** (funciona sem DNS
+público — útil pra já subir com HTTPS antes de ter o domínio público
+resolvendo; o navegador mostra aviso de "conexão não segura" até você
+trocar). Ao final, imprime o status do deploy e os próximos passos.
 Reexecutável: rodar de novo com um `.env` existente só reaplica migrations
-e reinicia os containers, sem repetir a tela de configuração.
+e reinicia os containers (sem repetir a tela de configuração), e a escolha
+de certificado é refeita a cada execução — então trocar de autoassinado
+para Let's Encrypt depois é só rodar `sudo ./install.sh` de novo e escolher
+a opção 1.
 
 Os passos manuais abaixo continuam documentados para quem preferir rodar
 cada etapa na mão ou entender o que o script faz por baixo.
@@ -62,6 +69,8 @@ docker compose exec api npx prisma migrate deploy
 ```
 
 ### 5. Nginx + TLS na frente (host)
+
+**Com DNS público (Let's Encrypt):**
 ```bash
 sudo apt -y install nginx
 sudo cp infra/nginx/nginx.conf /etc/nginx/sites-available/sentinela
@@ -72,6 +81,26 @@ sudo apt -y install certbot python3-certbot-nginx
 sudo certbot --nginx -d grc.suaempresa.com.br
 ```
 Ajuste `server_name` e o `proxy_pass` (para `http://127.0.0.1:8080`) no `nginx.conf`.
+
+**Sem DNS público ainda (certificado autoassinado):**
+```bash
+DOMAIN=grc.suaempresa.com.br
+sudo mkdir -p /etc/nginx/ssl/$DOMAIN
+sudo openssl req -x509 -nodes -newkey rsa:2048 -days 3650 \
+  -keyout /etc/nginx/ssl/$DOMAIN/privkey.pem \
+  -out /etc/nginx/ssl/$DOMAIN/fullchain.pem \
+  -subj "/CN=$DOMAIN" -addext "subjectAltName=DNS:$DOMAIN"
+sudo chmod 600 /etc/nginx/ssl/$DOMAIN/privkey.pem
+
+sudo apt -y install nginx
+sed "s/grc\.suaempresa\.com\.br/$DOMAIN/g" infra/nginx/nginx-selfsigned.conf \
+  | sudo tee /etc/nginx/sites-available/sentinela >/dev/null
+sudo ln -s /etc/nginx/sites-available/sentinela /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+O navegador vai mostrar aviso de certificado não confiável até você trocar
+por um real (repita o passo "Com DNS público" acima quando o domínio
+estiver resolvendo publicamente).
 
 ### 6. Backup
 ```bash
