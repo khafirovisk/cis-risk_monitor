@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Route, Routes, Navigate } from 'react-router-dom';
+import { NavLink, Outlet, Route, Routes, Navigate } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard';
 import { Auditoria } from './pages/Auditoria';
 import { Riscos } from './pages/Riscos';
@@ -15,7 +15,12 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { Toast } from './components/Toast';
 import { api } from './api/client';
 
-export default function App() {
+// Layout com a sidebar do app — só é montado quando se entra numa rota
+// autenticada (ver <Route element={<AppLayout />}> abaixo). Isso mantém
+// /login, /trocar-senha e /mfa/configurar como telas cheias, sem a sidebar,
+// e garante que o papel (role) seja buscado de novo assim que se entra na
+// área logada (em vez de ficar preso ao valor buscado antes do login).
+function AppLayout() {
   const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
@@ -60,10 +65,20 @@ export default function App() {
         </div>
       </nav>
       <main className="main">
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/trocar-senha" element={<ChangePassword />} />
-          <Route path="/mfa/configurar" element={<MfaEnroll />} />
+        <Outlet />
+      </main>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/trocar-senha" element={<ChangePassword />} />
+        <Route path="/mfa/configurar" element={<MfaEnroll />} />
+        <Route element={<AppLayout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/auditoria" element={<ProtectedRoute><Auditoria /></ProtectedRoute>} />
@@ -73,9 +88,9 @@ export default function App() {
           <Route path="/configuracoes/usuarios" element={<ProtectedRoute><Usuarios /></ProtectedRoute>} />
           <Route path="/configuracoes/seguranca" element={<ProtectedRoute><Seguranca /></ProtectedRoute>} />
           <Route path="/admin/saml" element={<ProtectedRoute><AdminSaml /></ProtectedRoute>} />
-        </Routes>
-      </main>
+        </Route>
+      </Routes>
       <Toast />
-    </div>
+    </>
   );
 }
