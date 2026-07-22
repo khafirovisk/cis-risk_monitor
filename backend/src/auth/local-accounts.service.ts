@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { authenticator } from 'otplib';
 import * as qrcode from 'qrcode';
+import { randomInt } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { SecuritySettingsService } from './security-settings.service';
 import { validatePassword } from './password-policy';
@@ -10,6 +11,12 @@ const MAX_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
 const HASH_ROUNDS = 12;
 const BACKUP_CODE_COUNT = 10;
+const BACKUP_CODE_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789';
+
+function generateBackupCode(): string {
+  const part = () => Array.from({ length: 4 }, () => BACKUP_CODE_ALPHABET[randomInt(BACKUP_CODE_ALPHABET.length)]).join('');
+  return `${part()}-${part()}`;
+}
 
 export interface LocalLoginResult {
   ok: boolean;
@@ -161,18 +168,37 @@ export class LocalAccountsService {
       return { ok: false, reason: 'locked', lockedUntilMs: account.lockedUntil.getTime() };
     }
 
+    if (typeof token !== 'string' || !token) {
+      return this.registerFailedAttempt(account);
+    }
+
     const validTotp = account.mfaSecret ? authenticator.check(token, account.mfaSecret) : false;
-    const backupIndex = validTotp ? -1 : await this.matchBackupCode(account.mfaBackupCodes, token);
-    if (!validTotp && backupIndex === -1) return this.registerFailedAttempt(account);
+    const matchedHash = validTotp ? null : await this.matchBackupCode(account.mfaBackupCodes, token);
+    if (!validTotp && !matchedHash) return this.registerFailedAttempt(account);
 
-    const remainingBackupCodes = backupIndex >= 0
-      ? account.mfaBackupCodes.filter((_: string, i: number) => i !== backupIndex)
-      : account.mfaBackupCodes;
-
-    await this.prisma.localAccount.update({
-      where: { id: account.id },
-      data: { failedAttempts: 0, lockedUntil: null, mfaBackupCodes: remainingBackupCodes },
-    });
+    if (matchedHash) {
+      // Optimistic-concurrency guard: only succeed if the code is still present
+      // in the DB row at write time, so two concurrent requests presenting the
+      // same backup code can't both redeem it.
+      const result = await this.prisma.localAccount.updateMany({
+        where: { id: account.id, mfaBackupCodes: { has: matchedHash } },
+        data: {
+          failedAttempts: 0,
+          lockedUntil: null,
+          mfaBackupCodes: account.mfaBackupCodes.filter((c: string) => c !== matchedHash),
+        },
+      });
+      if (result.count === 0) {
+        // Lost the race — someone else already consumed this code between our
+        // read and write. Don't penalize failedAttempts for this.
+        return { ok: false, reason: 'invalid' };
+      }
+    } else {
+      await this.prisma.localAccount.update({
+        where: { id: account.id },
+        data: { failedAttempts: 0, lockedUntil: null },
+      });
+    }
 
     return {
       ok: true,
@@ -183,16 +209,20 @@ export class LocalAccountsService {
     };
   }
 
-  private async matchBackupCode(hashedCodes: string[], candidate: string): Promise<number> {
-    for (let i = 0; i < hashedCodes.length; i++) {
-      if (await bcrypt.compare(candidate, hashedCodes[i])) return i;
+  private async matchBackupCode(hashedCodes: string[], candidate: string): Promise<string | null> {
+    for (const hash of hashedCodes) {
+      if (await bcrypt.compare(candidate, hash)) return hash;
     }
-    return -1;
+    return null;
   }
 
   async startMfaEnrollment(accountId: string): Promise<MfaEnrollment> {
     const account = await this.prisma.localAccount.findUnique({ where: { id: accountId } });
     if (!account) throw new Error('Conta local não encontrada');
+
+    if (account.mfaEnabled) {
+      throw new Error('MFA já habilitado nesta conta. Peça a um administrador para resetar antes de reconfigurar.');
+    }
 
     const secret = authenticator.generateSecret();
     await this.prisma.localAccount.update({ where: { id: accountId }, data: { mfaSecret: secret } });
@@ -206,11 +236,10 @@ export class LocalAccountsService {
     const account = await this.prisma.localAccount.findUnique({ where: { id: accountId } });
     if (!account || !account.mfaSecret) throw new Error('Nenhum cadastro de MFA pendente para esta conta');
 
+    if (typeof token !== 'string' || !token) throw new Error('Código inválido');
     if (!authenticator.check(token, account.mfaSecret)) throw new Error('Código inválido');
 
-    const backupCodes = Array.from({ length: BACKUP_CODE_COUNT }, () =>
-      Math.random().toString(36).slice(2, 6) + '-' + Math.random().toString(36).slice(2, 6),
-    );
+    const backupCodes = Array.from({ length: BACKUP_CODE_COUNT }, generateBackupCode);
     const hashedCodes = await Promise.all(backupCodes.map((c) => bcrypt.hash(c, HASH_ROUNDS)));
 
     await this.prisma.localAccount.update({

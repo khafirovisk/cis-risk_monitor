@@ -127,12 +127,14 @@ export class AuthController {
   @Post('local/mfa/enroll')
   async mfaEnroll(@Req() req: Request) {
     if (!req.isAuthenticated?.() || !(req.user as any)?.local) throw new UnauthorizedException();
+    if ((req.user as any)?.mustChangePassword) throw new UnauthorizedException();
     return this.localAccounts.startMfaEnrollment((req.user as any).id);
   }
 
   @Post('local/mfa/enroll/verify')
   async mfaEnrollVerify(@Body() body: { token: string }, @Req() req: Request) {
     if (!req.isAuthenticated?.() || !(req.user as any)?.local) throw new UnauthorizedException();
+    if ((req.user as any)?.mustChangePassword) throw new UnauthorizedException();
     const backupCodes = await this.localAccounts.confirmMfaEnrollment((req.user as any).id, body.token);
     if (req.user) (req.user as any).mfaEnrollRequired = false;
     return { backupCodes };

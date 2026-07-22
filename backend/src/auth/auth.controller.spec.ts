@@ -186,6 +186,14 @@ describe('AuthController', () => {
     expect(result.secret).toBe('S');
   });
 
+  it('mfaEnroll rejeita quando a sessão ainda tem troca de senha pendente (precedência sobre enroll de MFA)', async () => {
+    localAccounts.startMfaEnrollment = jest.fn();
+    const req: any = { isAuthenticated: () => true, user: { id: 'acc-1', local: true, mustChangePassword: true } };
+
+    await expect(controller.mfaEnroll(req)).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(localAccounts.startMfaEnrollment).not.toHaveBeenCalled();
+  });
+
   it('mfaEnrollVerify zera mfaEnrollRequired na sessão e retorna os códigos de backup', async () => {
     localAccounts.confirmMfaEnrollment = jest.fn().mockResolvedValue(['code-1', 'code-2']);
     const req: any = { isAuthenticated: () => true, user: { id: 'acc-1', local: true, mfaEnrollRequired: true } };
@@ -194,5 +202,13 @@ describe('AuthController', () => {
 
     expect(req.user.mfaEnrollRequired).toBe(false);
     expect(result).toEqual({ backupCodes: ['code-1', 'code-2'] });
+  });
+
+  it('mfaEnrollVerify rejeita quando a sessão ainda tem troca de senha pendente (precedência sobre enroll de MFA)', async () => {
+    localAccounts.confirmMfaEnrollment = jest.fn();
+    const req: any = { isAuthenticated: () => true, user: { id: 'acc-1', local: true, mustChangePassword: true } };
+
+    await expect(controller.mfaEnrollVerify({ token: '123456' }, req)).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(localAccounts.confirmMfaEnrollment).not.toHaveBeenCalled();
   });
 });
