@@ -97,7 +97,7 @@ export function Dashboard() {
     { n: dist.na, color: 'var(--border-2)', label: 'N/A' },
   ];
 
-  const insights = computeInsights(controls, itemsById, risks);
+  const insights = computeInsights(controls, itemsById, risks, sum.scopeIg);
 
   const sortedByPriority = [...activeRisks].sort(
     (a, b) => b.probResidual * b.impactResidual - a.probResidual * a.impactResidual,

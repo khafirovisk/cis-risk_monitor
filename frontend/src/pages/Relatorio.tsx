@@ -8,6 +8,8 @@ function levelText(m: number | null | undefined, na: boolean) {
   return `Nível ${m}`;
 }
 
+const igField = (ig: number) => (ig === 1 ? 'ig1' : ig === 3 ? 'ig3' : 'ig2');
+
 export function Relatorio() {
   const [rows, setRows] = useState<any[] | null>(null);
   const [exportPayload, setExportPayload] = useState<any>(null);
@@ -19,7 +21,8 @@ export function Relatorio() {
       const itemsById: Record<string, any> = {};
       full.items.forEach((it: any) => (itemsById[it.safeguardId] = it));
       const list: any[] = [];
-      controls.forEach((c: any) => c.safeguards.forEach((s: any) => {
+      const ig = igField(a.scopeIg);
+      controls.forEach((c: any) => c.safeguards.filter((s: any) => s[ig]).forEach((s: any) => {
         const it = itemsById[s.id];
         const evCount = (it?.evidenceText?.trim() ? 1 : 0) + (it?.evidences?.length || 0);
         list.push({

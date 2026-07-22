@@ -4,11 +4,15 @@ export type InsightItem = { sev: 'crit' | 'high' | 'med'; text: string; view: 'a
 
 // Porta as 5 regras do mockup para os dados reais (controles com salvaguardas,
 // items da avaliação por safeguardId, e riscos com tasks/controls).
-export function computeInsights(controls: any[], itemsById: Record<string, any>, risks: any[]): InsightItem[] {
+const igField = (ig: number) => (ig === 1 ? 'ig1' : ig === 3 ? 'ig3' : 'ig2');
+
+export function computeInsights(controls: any[], itemsById: Record<string, any>, risks: any[], scopeIg: number): InsightItem[] {
   const items: InsightItem[] = [];
+  const ig = igField(scopeIg);
+  const scopedSafeguards = (c: any) => c.safeguards.filter((s: any) => s[ig]);
 
   let semEvidencia = 0;
-  controls.forEach((c) => c.safeguards.forEach((s: any) => {
+  controls.forEach((c) => scopedSafeguards(c).forEach((s: any) => {
     const it = itemsById[s.id];
     const evCount = (it?.evidenceText?.trim() ? 1 : 0) + (it?.evidences?.length || 0);
     if (it && typeof it.maturity === 'number' && it.maturity >= 3 && !evCount) semEvidencia++;
@@ -20,7 +24,7 @@ export function computeInsights(controls: any[], itemsById: Record<string, any>,
   let antigas = 0;
   const umAnoAtras = new Date();
   umAnoAtras.setFullYear(umAnoAtras.getFullYear() - 1);
-  controls.forEach((c) => c.safeguards.forEach((s: any) => {
+  controls.forEach((c) => scopedSafeguards(c).forEach((s: any) => {
     const it = itemsById[s.id];
     if (it?.updatedAt && new Date(it.updatedAt) < umAnoAtras) antigas++;
   }));
